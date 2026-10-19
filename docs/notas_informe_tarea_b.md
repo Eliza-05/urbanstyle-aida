@@ -122,3 +122,46 @@ Cada ejemplo usa como entrada las `window` semanas anteriores de una serie y com
 | 12 | 3.884 | 4.787 |
 
 → **k = 8**. El error baja a medida que k crece, lo que confirma el EDA: el ruido es tan grande que promediar más semanas ayuda. MAE y RMSE se verifican a mano (`test_metrics_by_hand`) y contra `sklearn.metrics` (`test_metrics_match_sklearn`).
+
+## 6. Modelo LSTM (`model.py`, `train.py`, `tune.py`)
+
+### 6.1 Arquitectura (la de los notebooks de clase, en PyTorch)
+
+`LSTMForecaster` = `nn.LSTM(1 → hidden)` → último estado oculto → `nn.Dropout` → `nn.Linear(hidden → 1)`. Se entrena con MSE y Adam, con mini-lotes de 32 ventanas barajadas (se barajan las *ventanas*, nunca el orden de las semanas dentro de una ventana). Se usa early stopping sobre la pérdida de validación con paciencia de 30 épocas (máximo 300) y se restauran los pesos de la mejor época. La semilla es fija (`set_seed(42)`) y todo corre en CPU. El dropout va antes de la capa lineal porque con una sola capa LSTM el `dropout` interno de `nn.LSTM` no tiene efecto.
+
+### 6.2 Decisión: una LSTM por serie (A) en vez de una compartida (B)
+
+`python -m task_b_forecasting.tune` (152 s en CPU) compara, **solo con validación** y con 3 semillas por configuración:
+- **(A) por serie:** 6 LSTM independientes. Entrada: la serie sola.
+- **(B) compartida:** una LSTM para las 6 series, con el one-hot de la serie concatenado a cada paso. Se eligió one-hot y no un *embedding* porque es lo más simple y se vio en clase.
+
+Grilla: ventana {4, 8} × ocultas {8, 16, 32} × dropout {0, 0.2} × lr {0.001, 0.005} = 24 configuraciones por opción (`outputs/task_b/tuning_results.csv`).
+
+| Opción | Mejor configuración | MAE val (media ± desv., 3 semillas) | RMSE val | Mejor época media |
+|---|---|---|---|---|
+| **A por serie** | w=8, h=16, d=0, lr=0.005 | **3.825 ± 0.064** | 4.508 | 15 |
+| B compartida | w=8, h=16, d=0, lr=0.005 | 3.968 ± 0.158 | 4.807 | 2 |
+
+- Las **12 mejores** configuraciones de toda la grilla son de la opción A.
+- La compartida casi no aprende: su mejor época de validación es la 0–6 con lr=0.005, y sigue en ~4.0 de MAE con lr=0.001. Una explicación probable es que la autocorrelación es distinta en cada serie (EDA §3), y forzar una sola dinámica mezcla patrones que se contradicen.
+- **Consecuencia:** el checkpoint guarda 6 conjuntos de pesos en un solo archivo.
+
+### 6.3 Decisión: configuración final w=4, h=8, dropout=0.2, lr=0.005
+
+Muchas configuraciones de A empatan dentro del ruido entre semillas (3.825 a 3.858). Se aplica la **regla de parsimonia**: entre las que quedan a menos de una desviación estándar de la mejor (3.825 + 0.064 = 3.889), se elige la red más pequeña. Ante un empate, menos parámetros significa menos riesgo de sobreajuste.
+
+| Configuración (A) | MAE val | Parámetros por LSTM |
+|---|---|---|
+| w=8, h=16, d=0 (mejor) | 3.825 ± 0.064 | 1 233 |
+| **w=4, h=8, d=0.2 (elegida)** | **3.833 ± 0.036** | **361** |
+
+- **Ventana de 4 semanas (~1 mes):** la de 8 no mejora fuera del ruido, y con 4 cada serie tiene 32 ventanas de entrenamiento en vez de 28.
+- **8 unidades ocultas:** red pequeña para ~32 ejemplos por serie.
+- **dropout 0.2:** regulariza, y en la grilla no empeora el resultado.
+
+### 6.4 Entrenamiento final (`python -m task_b_forecasting.train`)
+
+- **Tiempo:** 2.6 s en CPU para las 6 LSTM.
+- **Mejor época por serie:** 15, 59, 26, 16, 26 y 24, con early stopping a las 46–90 épocas.
+- **Curvas** (`outputs/task_b/loss_curve.png`): la pérdida de entrenamiento baja y se estabiliza en ~0.08. La de validación baja hasta la mejor época y luego queda plana o sube un poco (Clothing-Male sube entre las épocas 15 y 30). Es una señal leve de sobreajuste que el early stopping corta. La validación queda por debajo de entrenamiento porque el dropout solo actúa al entrenar y porque la pérdida de entrenamiento es un promedio durante la época.
+- **Checkpoint** `models/lstm_forecast.pt` (21 KB): pesos de las 6 LSTM, `scaler_min`/`scaler_max`, ventana, nombres de las series, hiperparámetros, límites del split, k de la media móvil, semilla y mejores épocas. Al recargarlo, las predicciones son **idénticas** (`np.array_equal` = True, comprobado en `train.py` y en `tests/`).
