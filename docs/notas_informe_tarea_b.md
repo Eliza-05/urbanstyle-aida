@@ -62,3 +62,23 @@ Ambas dan 52 semanas, pero Dom–Sáb pierde menos datos porque el CSV empieza u
 ### 2.6 `pricing_stats` (para la Tarea C)
 
 Firma estable: `pricing_stats(df, by=("Product Category", "Gender")) -> DataFrame`, con una fila por segmento y las columnas `n_transactions, units, revenue, price_min, price_mean, price_median, price_max, qty_mean, age_mean`. `by` acepta cualquier columna del df o de `add_segments` (`"Series"`, `"Age Group"`). El dataset solo registra compras: da **escalas** reales, no la reacción de los clientes al precio.
+
+## 3. Análisis exploratorio (`python -m task_b_forecasting.eda`)
+
+Salidas: `outputs/task_b/eda_series.png`, `eda_dispersion.png` y `eda_stats.csv`.
+
+| Serie | Unidades totales | Media/sem | Desv. | CV | Máx | Semanas en 0 | ACF lag 1 |
+|---|---|---|---|---|---|---|---|
+| Clothing-Male | 453 | 8.71 | 5.08 | 0.58 | 19 | 3 | 0.20 |
+| Clothing-Female | 441 | 8.48 | 5.09 | 0.60 | 21 | 1 | −0.03 |
+| Beauty-Male | 350 | 6.73 | 4.32 | 0.64 | 19 | 3 | 0.03 |
+| Beauty-Female | 418 | 8.04 | 4.76 | 0.59 | 20 | 5 | −0.24 |
+| Electronics-Male | 407 | 7.83 | 4.59 | 0.59 | 21 | 1 | 0.10 |
+| Electronics-Female | 439 | 8.44 | 5.56 | 0.66 | 24 | 4 | 0.04 |
+
+**Conclusiones con números:**
+- **Series pequeñas y ruidosas:** de 7 a 9 unidades por semana, unas 3 transacciones, con un CV de ~0.6. Es la limitación aceptada del dataset: 1000 transacciones repartidas en 6 series × 52 semanas.
+- **Casi no hay memoria temporal:** con 52 puntos, una autocorrelación menor que ±1.96/√52 ≈ ±0.27 no se distingue de cero. Solo 4 de 24 autocorrelaciones (lags 1–4) quedan fuera de esa banda, con signos mezclados y sin un rezago común entre series. Por puro azar se esperarían ~1.2 de 24.
+- **Promediar le gana a copiar la semana anterior:** descriptivamente, sobre todo el año, predecir con la semana anterior da un MAE de 4.75 a 6.29, y predecir con la media anual da 3.44 a 4.46, en las 6 series. Esto anticipa que una media móvil larga será una línea base difícil de superar.
+- **Cambios de nivel:** Clothing-Male baja de 10.8 a 6.6 unidades/semana entre el primer y el segundo semestre, y Electronics-Female sube de 6.9 a 10.0. Una media móvil se adapta a estos cambios mejor que la media anual.
+- **¿Tiene sentido un LSTM?** El enunciado lo exige y se entrena, pero con este ruido el techo de cualquier modelo es bajo. **Riesgos:** sobreajuste (pocas ventanas por serie) y que el modelo termine aprendiendo solo la media. Mitigaciones: un modelo compartido entre las 6 series (6× más ejemplos), una red pequeña, dropout, early stopping y una comparación honesta con las líneas base en las mismas semanas.
