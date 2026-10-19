@@ -37,9 +37,10 @@ El modelo final ya está en `models/lstm_forecast.pt`, así que no hace falta en
 
 ```bash
 python -m task_b_forecasting.eda                 # análisis exploratorio  -> outputs/task_b/eda_*
-python -m task_b_forecasting.tune                # (opcional, ~2.5 min) comparación de modelos con validación
+python -m task_b_forecasting.tune                # (opcional, ~4.5 min) comparación de modelos con validación
 python -m task_b_forecasting.train               # entrena las 6 LSTM (~3 s en CPU) -> models/lstm_forecast.pt
 python -m task_b_forecasting.evaluate --seeds 5  # métricas, gráficas, próxima semana y CSV -> outputs/task_b/
+python -m task_b_forecasting.retrain_check       # (opcional, ~15 s) backtest: ¿reentrenar con train+val?
 python main.py                                   # menú -> "Tarea B"
 ```
 
@@ -47,11 +48,12 @@ python main.py                                   # menú -> "Tarea B"
 |---|---|
 | `common/data.py` | carga y valida el CSV, crea las series y la tabla semanal; `pricing_stats` para la Tarea C |
 | `task_b_forecasting/prepare.py` | split cronológico 36/8/8 semanas, MinMax ajustado solo con train, ventanas deslizantes |
-| `task_b_forecasting/baselines.py` | MAE, RMSE, línea base ingenua y media móvil (k elegido con validación) |
+| `task_b_forecasting/baselines.py` | MAE, RMSE y líneas base: ingenua, media móvil (k elegido con validación) y media histórica |
 | `task_b_forecasting/model.py` | LSTM + capa lineal; guardar y cargar el checkpoint |
 | `task_b_forecasting/train.py` | entrenamiento (Adam, MSE, dropout, early stopping, semilla fija) |
 | `task_b_forecasting/tune.py` | por serie vs. compartido y elección de hiperparámetros con validación |
-| `task_b_forecasting/evaluate.py` | LSTM vs. media móvil vs. ingenua en las mismas semanas de prueba; exporta `predictions.csv` |
+| `task_b_forecasting/evaluate.py` | LSTM vs. media móvil, media histórica e ingenua en las mismas semanas de prueba; sesgo, bootstrap y `predictions.csv` |
+| `task_b_forecasting/retrain_check.py` | backtest sin tocar prueba para decidir si reentrenar con train+val |
 | `task_b_forecasting/screen.py` | pantalla: slider de serie, gráfica real vs. predicho, métricas, próxima semana, botón Exportar CSV |
 
 Decisiones, números y limitaciones: [`docs/notas_informe_tarea_b.md`](docs/notas_informe_tarea_b.md).

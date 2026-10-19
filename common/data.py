@@ -118,8 +118,13 @@ def weekly_series(df: pd.DataFrame, target: str = "units", week_start: str = WEE
 def pricing_stats(df: pd.DataFrame, by: tuple[str, ...] = ("Product Category", "Gender")) -> pd.DataFrame:
     """Escalas de precio y compra por segmento (pensada para la Tarea C).
 
-    `by` son columnas del df (o de add_segments, p. ej. "Age Group" o "Series").
-    Devuelve una fila por segmento con:
+    Firma estable usada por la Tarea C: cambiarla requiere pull request revisado por ambos.
+
+    Parámetros:
+      df: transacciones de load_sales() (con o sin las columnas de add_segments).
+      by: columnas que definen el segmento, p. ej. ("Product Category", "Gender"), ("Series",)
+          o ("Age Group",).
+    Devuelve un DataFrame con una fila por segmento: las columnas de `by` y
       n_transactions, units, revenue, price_min, price_mean, price_median, price_max,
       qty_mean, age_mean.
     Ojo: el dataset solo registra compras; esto da escalas reales, no la reacción al precio.
