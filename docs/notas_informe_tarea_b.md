@@ -82,3 +82,27 @@ Salidas: `outputs/task_b/eda_series.png`, `eda_dispersion.png` y `eda_stats.csv`
 - **Promediar le gana a copiar la semana anterior:** descriptivamente, sobre todo el año, predecir con la semana anterior da un MAE de 4.75 a 6.29, y predecir con la media anual da 3.44 a 4.46, en las 6 series. Esto anticipa que una media móvil larga será una línea base difícil de superar.
 - **Cambios de nivel:** Clothing-Male baja de 10.8 a 6.6 unidades/semana entre el primer y el segundo semestre, y Electronics-Female sube de 6.9 a 10.0. Una media móvil se adapta a estos cambios mejor que la media anual.
 - **¿Tiene sentido un LSTM?** El enunciado lo exige y se entrena, pero con este ruido el techo de cualquier modelo es bajo. **Riesgos:** sobreajuste (pocas ventanas por serie) y que el modelo termine aprendiendo solo la media. Mitigaciones: un modelo compartido entre las 6 series (6× más ejemplos), una red pequeña, dropout, early stopping y una comparación honesta con las líneas base en las mismas semanas.
+
+## 4. Preparación para el modelo (`task_b_forecasting/prepare.py`)
+
+### 4.1 Decisión: split cronológico 36 / 8 / 8 semanas
+
+| Parte | Semanas (índice) | Fechas de inicio | Uso |
+|---|---|---|---|
+| Entrenamiento | 0–35 (36) | 2023-01-01 a 2023-09-03 | ajustar pesos y escalador |
+| Validación | 36–43 (8) | 2023-09-10 a 2023-10-29 | early stopping, elegir k de la media móvil, ventana e hiperparámetros |
+| Prueba | 44–51 (8) | 2023-11-05 a 2023-12-24 | solo para el informe final; no se usa para decidir nada |
+
+- **Por qué cronológico:** en una serie de tiempo el modelo solo puede usar el pasado. Si se barajara, entrenaría con semanas de diciembre para "predecir" octubre: eso es fuga de información y daría métricas optimistas que no se repiten en la práctica.
+- **Por qué 8 semanas de prueba:** dan 8 × 6 = 48 predicciones para evaluar (unos 2 meses). Con 4 semanas (24 puntos) la métrica variaría demasiado; con 12+12 quedarían solo 28 semanas para entrenar. Con validación del mismo tamaño, 36 semanas de entrenamiento siguen siendo suficientes para ventanas de 4 a 8 semanas.
+- **Alternativa descartada:** validación cruzada temporal (rolling origin). Es más robusta, pero no se vio en clase y multiplica el costo; aquí se compensa repitiendo el entrenamiento con 5 semillas.
+
+### 4.2 Escalado MinMax ajustado solo con entrenamiento
+
+Se usa un `MinMaxScaler` (como en los notebooks de clase) **por serie**, ajustado únicamente con las 36 semanas de entrenamiento. Si se ajustara con todo el año, el mínimo y el máximo de prueba se filtrarían al modelo. En validación y prueba puede haber valores fuera de [0, 1]: es correcto, porque el modelo nunca vio esas semanas. Para el checkpoint se guardan `data_min_` y `data_max_`, y `scaler_from_minmax` reconstruye un escalador idéntico.
+
+### 4.3 Ventanas deslizantes
+
+Cada ejemplo usa como entrada las `window` semanas anteriores de una serie y como objetivo la semana siguiente. Así una serie de 52 semanas se convierte en pares (entrada, objetivo). Una ventana de entrenamiento solo usa semanas < 36, tanto en la entrada como en el objetivo. Las ventanas de validación y prueba sí pueden incluir semanas anteriores de otras partes en la **entrada**: es la historia real que se conoce el día del pronóstico. El **objetivo** siempre pertenece a la parte que se evalúa. El tamaño de ventana (4 u 8) se elige con validación (§6).
+
+**Pruebas que demuestran que no hay fuga** (`tests/test_forecasting.py`): `test_scaler_uses_only_train_weeks` (alterar val/test no cambia el escalador), `test_train_windows_never_touch_val_or_test` (ninguna entrada ni objetivo de train viene de una semana ≥ 36), `test_test_windows_target_only_test_weeks`, más pruebas de forma de los tensores y del contenido exacto de una ventana.
