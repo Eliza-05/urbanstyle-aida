@@ -228,3 +228,44 @@ Para inventario, con un MAE de ~3.4 unidades sobre niveles de 6 a 10, conviene p
   - Texto fijo: "3 categorías originales × género = 6 series".
 - **Solo carga el modelo:** carga `models/lstm_forecast.pt` y nunca entrena. torch se importa solo al entrar a la pantalla, para que el menú abra rápido, y los resultados quedan en caché. Si falta el checkpoint, muestra el comando para entrenarlo en vez de fallar.
 - **Verificación headless** (`SDL_VIDEODRIVER=dummy`): el clic en el slider cambia a Beauty-Female y la flecha derecha a Electronics-Male; la exportación muestra el mensaje y ESC cierra la pantalla. Desde `main.py`, clic en "Tarea B" → slider → ESC → cerrar ventana termina limpio. Las capturas de las 6 series y de la pantalla de error se revisaron a ojo. Captura: `outputs/task_b/screen_task_b.png`.
+
+## 9. Fundamentos teóricos (para la sustentación)
+
+**¿Por qué LSTM y no una RNN simple?** Una RNN simple pasa su estado de un paso al siguiente multiplicándolo una y otra vez por los mismos pesos. Al entrenar, el gradiente se multiplica igual hacia atrás y se encoge (**desvanecimiento del gradiente**): la red deja de aprender de lo que pasó hace varios pasos. La LSTM añade una **celda de memoria** controlada por tres **compuertas**. La de **olvido** decide qué se borra, la de **entrada** qué se guarda nuevo y la de **salida** qué se muestra. Como la celda se actualiza sumando y no solo multiplicando, el gradiente fluye mejor y la red conserva memoria de más largo plazo. La GRU hace algo parecido con dos compuertas. Se eligió LSTM porque es lo que pide el enunciado.
+
+**Ventana deslizante.** Una red no "ve" una serie entera de una vez; aprende de ejemplos (entrada → objetivo). Una ventana de 4 semanas toma las semanas 1–4 como entrada y la 5 como objetivo; luego se corre una posición (2–5 → 6), y así sucesivamente. Con 36 semanas de entrenamiento salen 32 ejemplos por serie.
+
+**Split cronológico y escalador solo con train.** En la vida real se pronostica el futuro con el pasado. Si se barajan las semanas, el modelo se entrena con información "del futuro" y las métricas salen mejores de lo que serán en la práctica: eso es **fuga de información**. Por lo mismo, el MinMax se ajusta solo con entrenamiento. Si usara el mínimo y el máximo de todo el año, el modelo sabría de antemano el rango de las semanas de prueba.
+
+**MAE vs. RMSE.** El MAE es el error promedio en unidades ("me equivoco en ~3.4 prendas por semana"). El RMSE eleva los errores al cuadrado antes de promediar, así que **castiga más los errores grandes**: dos modelos con el mismo MAE pueden tener RMSE distinto si uno comete fallos grandes ocasionales. Siempre RMSE ≥ MAE. Se reportan en **unidades reales**, invirtiendo el escalado, porque un error de 0.05 en escala [0, 1] no significa nada para quien compra inventario.
+
+**¿Por qué la media móvil es la línea base correcta?** Es lo que haría una tienda sin modelos: "pido lo que vendí en promedio las últimas semanas". Es simple, no se entrena y es difícil de batir cuando las series son ruidosas. Un modelo complejo solo vale la pena si la supera. **Si gana la media móvil**, significa que en estos datos no hay patrones temporales que la LSTM pueda explotar más allá del nivel promedio. Es un resultado válido y útil (no hace falta un modelo costoso), no un fracaso del método.
+
+**Red pequeña y control del sobreajuste.** Con 32 ejemplos por serie, una red grande memorizaría el ruido de entrenamiento (**sobreajuste**: baja la pérdida de entrenamiento y sube la de validación). Se controla con tres medidas:
+- **pocas unidades ocultas:** 8, para 361 parámetros por LSTM;
+- **dropout 0.2:** apaga neuronas al azar durante el entrenamiento para que la red no dependa de ninguna;
+- **early stopping:** se detiene cuando la pérdida de validación deja de mejorar durante 30 épocas y se recuperan los pesos de la mejor época.
+
+**LSTM vs. encoder-decoder.** Un encoder-decoder usa una LSTM que resume la entrada en un estado (encoder) y otra que genera una **secuencia** de salida paso a paso (decoder). Se usa en traducción o para pronosticar varias semanas a la vez. El enunciado pide predecir **la siguiente semana**, es decir, una sola salida. Por eso basta una LSTM con una capa lineal al final: es más simple, tiene menos parámetros (importante con tan pocos datos) y es igual a los ejemplos de clase.
+
+## 10. Supuestos y limitaciones
+
+- **Las 6 series no son categorías nuevas:** salen de cruzar las 3 categorías originales con el género, con autorización del profesor.
+- **Semanas sin ventas = 0:** es una hipótesis (§2.5).
+- **Series cortas y ruidosas:** 52 semanas de ~3 transacciones; la autocorrelación casi nula (§3) limita lo que cualquier modelo puede aprender. Es una limitación del dataset, no del método.
+- **Prueba pequeña:** 48 predicciones. Diferencias menores a ~0.1 unidades entre modelos no son concluyentes, y por eso se reporta la variabilidad entre semillas.
+- **El modelo final se entrenó solo con las 36 semanas de entrenamiento:** validación se usó para early stopping. Una alternativa habitual es reentrenar con train+val antes de pronosticar la próxima semana, pero no hay datos que permitan comprobar si mejora, así que no se hizo.
+- **Sin factores externos:** el dataset no trae promociones, festivos ni precios de la competencia. No hay estacionalidad anual medible con un solo año de datos.
+- **Python 3.13:** todo se ejecutó y verificó en Python 3.13.3, porque en la máquina de desarrollo no hay 3.11; falta verificarlo en 3.11.
+
+## 11. Pruebas (`pytest`)
+
+- `tests/test_data.py`: 7 pruebas. Series y rangos de edad, semana Dom/Lun, tabla semanal con ceros y totales, ingresos, `pricing_stats`, validación de columnas e integración con el CSV real (se salta si no hay CSV).
+- `tests/test_forecasting.py`: 22 pruebas.
+  - split cronológico y escalador solo con train (no-fuga);
+  - formas y contenido de las ventanas, y que ninguna ventana de train toque val/test;
+  - MAE y RMSE a mano y contra sklearn, líneas base a mano y `choose_k`;
+  - salida del modelo, checkpoint que se recarga con predicciones idénticas y desescalado por serie;
+  - alineación de los tres modelos en las mismas semanas y pronóstico de la próxima semana;
+  - checkpoint real + pantalla headless (se salta si no hay CSV o checkpoint).
+- **Ninguna prueba entrena.** Suite completa: 29 pruebas en ~6–10 s, sobre todo por la importación de torch. Sin el CSV ni el checkpoint: 27 pasan y 2 se saltan (comprobado en una copia del repo sin esos archivos).

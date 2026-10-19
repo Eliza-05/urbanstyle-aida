@@ -1,7 +1,10 @@
 """Pruebas rápidas de la Tarea B (no entrenan ni necesitan el CSV)."""
 import numpy as np
+import pandas as pd
 import pytest
+import torch
 
+from common import config
 from task_b_forecasting.baselines import (
     choose_k,
     mae,
@@ -9,12 +12,16 @@ from task_b_forecasting.baselines import (
     naive_forecast,
     rmse,
 )
+from task_b_forecasting.evaluate import build_predictions, forecast_next_week, metrics_table
+from task_b_forecasting.model import LSTMForecaster, load_checkpoint, predict_scaled, save_checkpoint
 from task_b_forecasting.prepare import (
+    TEST_WEEKS,
     chronological_split,
     fit_scaler,
     make_windows,
     scaler_from_minmax,
 )
+from task_b_forecasting.train import Data, predict_units
 
 N_WEEKS, N_SERIES, WINDOW = 52, 6, 4
 
@@ -29,10 +36,12 @@ def toy_values():
 
 def test_split_is_chronological_and_complete():
     split = chronological_split(N_WEEKS)
-    assert (split.train_end, split.val_end) == (36, 44)
+    assert split.train_end == 36
+    assert split.val_end == 44
     parts = [list(split.targets(p)) for p in ("train", "val", "test")]
     assert parts[0] + parts[1] + parts[2] == list(range(N_WEEKS))  # sin huecos ni solapes, en orden
-    assert max(parts[0]) < min(parts[1]) and max(parts[1]) < min(parts[2])
+    assert max(parts[0]) < min(parts[1])
+    assert max(parts[1]) < min(parts[2])
 
 
 def test_scaler_uses_only_train_weeks():
@@ -138,3 +147,111 @@ def test_choose_k_uses_only_given_targets():
     best, scores = choose_k(values, range(10, 20), candidates=(2, 4, 8))
     assert all(s == (0.0, 0.0) for s in scores.values())
     assert best == 2
+
+
+# ---------- modelo, checkpoint y evaluación (sin entrenar) ----------
+
+
+def untrained_models(n=N_SERIES, hidden=4):
+    torch.manual_seed(0)
+    return [LSTMForecaster(1, hidden, 0.2) for _ in range(n)]
+
+
+def fake_data():
+    values = toy_values() % 23  # valores tipo "unidades" entre 0 y 22
+    weekly = pd.DataFrame(values, index=pd.date_range("2023-01-01", periods=N_WEEKS, freq="7D"),
+                          columns=[f"S{i}" for i in range(N_SERIES)])
+    split = chronological_split(N_WEEKS)
+    scaler = fit_scaler(values, split)
+    return Data(weekly, values, split, scaler, scaler.transform(values))
+
+
+def fake_ckpt(data, window=WINDOW, k=3):
+    return {"input_size": 1, "hidden_size": 4, "dropout": 0.2, "window": window, "ma_k": k,
+            "series_names": list(data.weekly.columns), "scaler_min": data.scaler.data_min_.tolist(),
+            "scaler_max": data.scaler.data_max_.tolist(), "train_end": data.split.train_end,
+            "val_end": data.split.val_end, "n_weeks": data.split.n_weeks}
+
+
+def test_model_output_shape():
+    model = LSTMForecaster(1, 8, 0.2)
+    out = predict_scaled(model, np.zeros((5, WINDOW, 1), dtype=np.float32))
+    assert out.shape == (5,)
+
+
+def test_checkpoint_roundtrip_reproduces_predictions(tmp_path):
+    data = fake_data()
+    models = untrained_models()
+    path = tmp_path / "ckpt.pt"
+    save_checkpoint(models, fake_ckpt(data), path)
+    reloaded, meta = load_checkpoint(path)
+    assert meta["window"] == WINDOW
+    assert len(reloaded) == N_SERIES
+    targets = data.split.targets("test")
+    before = predict_units(models, data.scaled, WINDOW, targets, data.scaler)
+    after = predict_units(reloaded, data.scaled, WINDOW, targets, data.scaler)
+    for a, b in zip(before, after):
+        np.testing.assert_array_equal(a, b)
+
+
+def test_predict_units_inverts_scaling_per_series():
+    data = fake_data()
+    models = untrained_models()
+    pred, s_idx, t_idx = predict_units(models, data.scaled, WINDOW, [40, 41], data.scaler)
+    assert pred.shape == (2 * N_SERIES,)
+    assert list(s_idx[:2]) == [0, 0]
+    assert list(t_idx[:2]) == [40, 41]
+    # Cada predicción en unidades = salida cruda de SU red × rango + mínimo de SU serie.
+    for s, model in enumerate(models):
+        X, _, _, _ = make_windows(data.scaled, WINDOW, [40, 41], series=[s], one_hot=False)
+        raw = predict_scaled(model, X)
+        expected = raw * data.scaler.data_range_[s] + data.scaler.data_min_[s]
+        np.testing.assert_allclose(pred[s_idx == s], expected, rtol=1e-6)
+
+
+def test_build_predictions_aligns_models_on_same_weeks():
+    data = fake_data()
+    ckpt = fake_ckpt(data, window=WINDOW, k=3)
+    pred = build_predictions(untrained_models(), ckpt, data)
+    test = pred[pred["part"] == "test"]
+    assert len(test) == TEST_WEEKS * N_SERIES
+    row = test[(test["series"] == "S2")].iloc[0]  # primera semana de prueba (t = 44) de la serie 2
+    np.testing.assert_allclose(row["actual"], data.values[44, 2])
+    np.testing.assert_allclose(row["moving_average"], data.values[41:44, 2].mean())
+    np.testing.assert_allclose(row["naive"], data.values[43, 2])
+    metrics = metrics_table(pred)
+    assert list(metrics["series"])[-1] == "GLOBAL"
+    assert metrics.set_index("series").loc["GLOBAL", "n"] == TEST_WEEKS * N_SERIES
+
+
+def test_forecast_next_week_is_the_week_after_the_data():
+    data = fake_data()
+    nxt = forecast_next_week(untrained_models(), fake_ckpt(data, k=3), data)
+    assert len(nxt) == N_SERIES
+    assert nxt["week_start"].iloc[0] == (data.weekly.index[-1] + pd.Timedelta(days=7)).date()
+    np.testing.assert_allclose(nxt["moving_average"], data.values[-3:].mean(axis=0))
+
+
+@pytest.mark.skipif(not (config.SALES_CSV.exists() and (config.MODELS_DIR / "lstm_forecast.pt").exists()),
+                    reason="requiere el CSV y el checkpoint entrenado")
+def test_saved_checkpoint_and_screen_headless(monkeypatch):
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    monkeypatch.setenv("SDL_AUDIODRIVER", "dummy")
+    import pygame
+    from task_b_forecasting import screen as screen_b
+    from task_b_forecasting.evaluate import load_results
+    results = load_results()
+    ckpt = results["ckpt"]
+    assert ckpt["series_names"] == ["Clothing-Male", "Clothing-Female", "Beauty-Male",
+                                    "Beauty-Female", "Electronics-Male", "Electronics-Female"]
+    assert len(ckpt["state_dicts"]) == 6
+    assert results["metrics"].shape[0] == 7  # 6 series + global
+    pygame.init()
+    surface = pygame.display.set_mode((config.WINDOW_WIDTH, config.WINDOW_HEIGHT))
+    view = screen_b.ForecastScreen(results)
+    view.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RIGHT))
+    assert view.series_name == "Clothing-Female"
+    view.draw(surface)
+    view.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
+    assert view.done
+    pygame.quit()
