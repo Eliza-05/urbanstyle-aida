@@ -165,3 +165,52 @@ Muchas configuraciones de A empatan dentro del ruido entre semillas (3.825 a 3.8
 - **Mejor época por serie:** 15, 59, 26, 16, 26 y 24, con early stopping a las 46–90 épocas.
 - **Curvas** (`outputs/task_b/loss_curve.png`): la pérdida de entrenamiento baja y se estabiliza en ~0.08. La de validación baja hasta la mejor época y luego queda plana o sube un poco (Clothing-Male sube entre las épocas 15 y 30). Es una señal leve de sobreajuste que el early stopping corta. La validación queda por debajo de entrenamiento porque el dropout solo actúa al entrenar y porque la pérdida de entrenamiento es un promedio durante la época.
 - **Checkpoint** `models/lstm_forecast.pt` (21 KB): pesos de las 6 LSTM, `scaler_min`/`scaler_max`, ventana, nombres de las series, hiperparámetros, límites del split, k de la media móvil, semilla y mejores épocas. Al recargarlo, las predicciones son **idénticas** (`np.array_equal` = True, comprobado en `train.py` y en `tests/`).
+
+## 7. Resultados (`python -m task_b_forecasting.evaluate --seeds 5`)
+
+Prueba = las últimas 8 semanas (2023-11-05 a 2023-12-24) × 6 series = **48 predicciones, las mismas para los 3 modelos**. Métricas en **unidades por semana** (con el escalado ya invertido). Las métricas globales se recalcularon con `sklearn.metrics` y coinciden (`verify_with_sklearn` = True).
+
+### 7.1 Checkpoint final (semilla 42)
+
+| Serie | LSTM MAE | LSTM RMSE | Media móvil (k=8) MAE | MM RMSE | Ingenua MAE | Ingenua RMSE |
+|---|---|---|---|---|---|---|
+| Clothing-Male | 3.485 | 4.004 | **2.969** | **4.002** | 3.500 | 4.444 |
+| Clothing-Female | **3.950** | **4.228** | 4.062 | 4.368 | 5.875 | 6.452 |
+| Beauty-Male | **2.453** | **3.320** | 2.594 | 3.815 | 4.000 | 4.743 |
+| Beauty-Female | 2.930 | 3.536 | **2.312** | **2.651** | 3.500 | 3.841 |
+| Electronics-Male | 3.697 | **4.319** | **3.688** | 4.606 | 5.375 | 6.031 |
+| Electronics-Female | **3.892** | **5.080** | 4.422 | 5.837 | 6.500 | 7.194 |
+| **GLOBAL** | 3.401 | **4.121** | **3.341** | 4.320 | 4.792 | 5.579 |
+
+### 7.2 Variabilidad entre 5 semillas (42–46), métricas globales en prueba
+
+| Modelo | MAE (media ± desv.) | RMSE (media ± desv.) |
+|---|---|---|
+| LSTM | 3.430 ± 0.039 | **4.164 ± 0.051** |
+| Media móvil k=8 | **3.341** (determinista) | 4.320 |
+| Ingenua | 4.792 | 5.579 |
+
+### 7.3 Interpretación honesta
+
+- **La LSTM y la media móvil quedan prácticamente empatadas.** La media móvil gana en MAE por 0.09 unidades/semana, una diferencia de solo ~2 desviaciones entre semillas. La LSTM gana en RMSE por 0.16, con las 5 semillas por debajo de 4.32: comete **menos errores grandes**. Por serie, cada modelo gana en la mitad de los casos.
+- **Las dos le ganan claramente a la ingenua:** ~29 % menos MAE y ~25 % menos RMSE. Copiar la semana anterior es la peor estrategia con series tan ruidosas.
+- **La LSTM aprendió el nivel de cada serie, no una dinámica.** Sus predicciones casi no varían de una semana a otra: la desviación estándar de sus pronósticos es de 0.3 a 0.5 unidades, contra 4.3 a 5.2 de las ventas reales y 1.1 a 2.7 de la media móvil. Es coherente con el EDA: si las semanas casi no están correlacionadas, la mejor predicción bajo MSE es un nivel estable, y eso aprendió la red. Este comportamiento suaviza más que la media móvil y explica por qué gana en RMSE.
+- En validación, el checkpoint de semilla 42 tiene un MAE de 3.917 contra 3.859 de la media móvil. Su RMSE es menor: 4.564 contra 4.745.
+- **Mejoras honestas que se probaron (todas con validación):** ventana 4/8, ocultas 8/16/32, dropout 0/0.2, lr 0.001/0.005, y modelo por serie vs. compartido (§6). Ninguna configuración se separa del resto más allá del ruido entre semillas. Seguir ajustando con 8 semanas de validación sería ajustar ruido, así que se dejó así.
+
+### 7.4 Pronóstico de la próxima semana (semana del 2023-12-31; `outputs/task_b/next_week.csv`)
+
+| Serie | LSTM | Media móvil | Ingenua |
+|---|---|---|---|
+| Clothing-Male | 5.16 | 7.00 | 1 |
+| Clothing-Female | 8.15 | 7.38 | 11 |
+| Beauty-Male | 7.68 | 6.00 | 6 |
+| Beauty-Female | 6.78 | 8.88 | 13 |
+| Electronics-Male | 8.32 | 8.12 | 2 |
+| Electronics-Female | 9.96 | 10.00 | 12 |
+
+Para inventario, con un MAE de ~3.4 unidades sobre niveles de 6 a 10, conviene presentar el pronóstico como un **rango** (± el MAE) y no como un número exacto.
+
+### 7.5 Exportación (bonus)
+
+`outputs/task_b/predictions.csv`: 270 filas con columnas `week_start, series, part, actual, lstm, moving_average, naive`. `part` ∈ {train (168), val (48), test (48), next_week (6)}; `actual` está vacío solo en `next_week`. Las filas de train y val se incluyen para graficar; las métricas usan solo `test`. La pantalla tiene un botón que regenera este archivo.

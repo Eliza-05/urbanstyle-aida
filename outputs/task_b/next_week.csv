@@ -1,0 +1,7 @@
+week_start,series,lstm,moving_average,naive
+2023-12-31,Clothing-Male,5.16,7.0,1.0
+2023-12-31,Clothing-Female,8.15,7.38,11.0
+2023-12-31,Beauty-Male,7.68,6.0,6.0
+2023-12-31,Beauty-Female,6.78,8.88,13.0
+2023-12-31,Electronics-Male,8.32,8.12,2.0
+2023-12-31,Electronics-Female,9.96,10.0,12.0
