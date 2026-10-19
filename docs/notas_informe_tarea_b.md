@@ -191,7 +191,10 @@ Grilla: ventana {4, 8} × ocultas {2, 4, 8, 16, 32} × dropout {0, 0.2} × lr {0
 - **Curvas** (`outputs/task_b/loss_curve.png`): la pérdida de validación baja hasta la mejor época y luego queda plana o sube un poco. Es una señal leve de sobreajuste que el early stopping corta. **No hay subajuste grave:** el error de entrenamiento se aplana porque lo que queda es ruido. La validación queda por debajo de entrenamiento porque el dropout solo actúa al entrenar y porque la pérdida de entrenamiento es un promedio durante la época.
 - **Tamaño de la red vs. datos:** 361 parámetros por LSTM para 32 ventanas de 4 semanas (128 valores de entrada). Nominalmente hay más parámetros que ejemplos, así que la red **podría** memorizar. Que no lo haga se debe a tres frenos: el early stopping corta en la época 15–59, antes de memorizar; el dropout; y que sus predicciones casi no varían (desviación de 0.3–0.5 unidades, §7.3), es decir, no está copiando el ruido de entrenamiento. Una red más chica (h=2) no fue mejor (§6.3).
 - **Checkpoint** `models/lstm_forecast.pt` (21 KB): pesos de las 6 LSTM, `scaler_min`/`scaler_max`, ventana, nombres de las series, hiperparámetros, límites del split, k de la media móvil, semilla y mejores épocas. Al recargarlo, las predicciones son **idénticas** (comprobado en `train.py` y en `tests/`).
-- **Reproducibilidad:** volver a entrenar con la semilla 42 produce pesos **idénticos al bit** (comprobado en el repo y en un clon limpio).
+- **Reproducibilidad:**
+  - con la misma versión de torch (2.10.0), volver a entrenar con la semilla 42 produce pesos **idénticos al bit**;
+  - en un **clon limpio** con instalación nueva de `requirements.txt` (torch 2.14.1, numpy 2.5.4), los pesos difieren como máximo en 1.5·10⁻⁷, por redondeo de punto flotante entre versiones;
+  - en ese clon, `metrics.csv`, `predictions.csv`, `next_week.csv` y las demás tablas salen **idénticos** (MAE 3.401 / RMSE 4.121).
 
 ## 7. Resultados (`python -m task_b_forecasting.evaluate --seeds 5`)
 
@@ -392,7 +395,7 @@ Para inventario, con un MAE de ~3.4 unidades sobre niveles de 6 a 10, conviene p
 |---|---|---|---|
 | Seleccionar 5–8 categorías | Obligatorio | ✅ | 6 series Categoría × Género con autorización del profesor (§2.1); aviso en la pantalla |
 | Preprocesar como series semanales | Obligatorio · rúbrica "time-series prep" | ✅ | `weekly_series`: 52 semanas Dom–Sáb, suma = 2508 unidades = filas del CSV; hipótesis de ceros (§2.5) |
-| LSTM pequeña o encoder-decoder | Obligatorio · rúbrica "LSTM model runs" | ✅ | 6 LSTM de 361 parámetros, `models/lstm_forecast.pt`, entrenamiento de ~3 s en CPU, pesos reproducibles al bit |
+| LSTM pequeña o encoder-decoder | Obligatorio · rúbrica "LSTM model runs" | ✅ | 6 LSTM de 361 parámetros, `models/lstm_forecast.pt`, entrenamiento de ~3 s en CPU; mismas métricas en un clon limpio |
 | Predecir la siguiente semana | Obligatorio | ✅ | `next_week.csv`: semana del 2023-12-31 con las 4 últimas semanas observadas como entrada (§7.4) |
 | Evaluar con MAE y RMSE | Obligatorio · rúbrica "MAE & RMSE reported" | ✅ | `metrics.csv` por serie y global en unidades reales; coincide con sklearn |
 | Pygame: gráfica del pronóstico + slider de categoría o duración | Obligatorio | ✅ | `screen.py` con slider de serie; captura y prueba headless |
@@ -420,7 +423,7 @@ Se comprobaron sin hallar errores:
 - el desescalado (salida cruda 0.3012 × rango 19 + mínimo 0 = 5.723 unidades);
 - el escalador solo con train;
 - el uso de validación solo para k, hiperparámetros y early stopping;
-- la reproducibilidad al bit.
+- la reproducibilidad (al bit con la misma versión de torch; métricas idénticas en un clon limpio con versiones más nuevas).
 
 ## 14. Preguntas probables del profesor
 
