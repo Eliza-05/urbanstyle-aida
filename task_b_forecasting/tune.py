@@ -16,7 +16,7 @@ from task_b_forecasting.model import predict_scaled
 from task_b_forecasting.train import HPARAMS, OUT_DIR, load_data, train_model, unscale, windows_for
 
 SEEDS = (0, 1, 2)
-GRID = {"window": (4, 8), "hidden_size": (8, 16, 32), "dropout": (0.0, 0.2), "lr": (0.001, 0.005)}
+GRID = {"window": (4, 8), "hidden_size": (2, 4, 8, 16, 32), "dropout": (0.0, 0.2), "lr": (0.001, 0.005)}
 
 
 def val_predictions(data, hp, seed, shared: bool):

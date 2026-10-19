@@ -7,12 +7,20 @@ import torch
 from common import config
 from task_b_forecasting.baselines import (
     choose_k,
+    historical_mean_forecast,
     mae,
     moving_average_forecast,
     naive_forecast,
     rmse,
 )
-from task_b_forecasting.evaluate import build_predictions, forecast_next_week, metrics_table
+from task_b_forecasting.evaluate import (
+    MODELS,
+    build_predictions,
+    forecast_next_week,
+    metrics_table,
+    paired_bootstrap,
+    residual_bias,
+)
 from task_b_forecasting.model import LSTMForecaster, load_checkpoint, predict_scaled, save_checkpoint
 from task_b_forecasting.prepare import (
     TEST_WEEKS,
@@ -139,6 +147,14 @@ def test_naive_and_moving_average_by_hand():
         moving_average_forecast(values, [1], k=3)
 
 
+def test_historical_mean_by_hand():
+    values = np.array([[2.0], [4.0], [6.0], [10.0]])
+    pred = historical_mean_forecast(values, [1, 2, 3], end=2)
+    assert np.isnan(pred[0, 0])  # semana 1 está dentro del tramo usado para el promedio
+    assert pred[1, 0] == pytest.approx(3.0)
+    assert pred[2, 0] == pytest.approx(3.0)
+
+
 def test_choose_k_uses_only_given_targets():
     # Serie constante en 5 hasta la semana 19 y luego 50: con objetivos 10..19 todo k es perfecto,
     # y el salto posterior (como si fuera prueba) no puede influir en la elección.
@@ -219,6 +235,9 @@ def test_build_predictions_aligns_models_on_same_weeks():
     np.testing.assert_allclose(row["actual"], data.values[44, 2])
     np.testing.assert_allclose(row["moving_average"], data.values[41:44, 2].mean())
     np.testing.assert_allclose(row["naive"], data.values[43, 2])
+    np.testing.assert_allclose(row["hist_mean_train"], data.values[:36, 2].mean())
+    np.testing.assert_allclose(row["hist_mean_trainval"], data.values[:44, 2].mean())
+    assert test[list(MODELS)].notna().all().all()  # todos los modelos predicen todas las filas de prueba
     metrics = metrics_table(pred)
     assert list(metrics["series"])[-1] == "GLOBAL"
     assert metrics.set_index("series").loc["GLOBAL", "n"] == TEST_WEEKS * N_SERIES
@@ -255,3 +274,30 @@ def test_saved_checkpoint_and_screen_headless(monkeypatch):
     view.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
     assert view.done
     pygame.quit()
+
+
+def fake_test_predictions():
+    """Predicciones de prueba sintéticas: LSTM perfecta, ingenua con error +2 constante, resto +1/-1."""
+    actual = np.array([5.0, 7.0, 3.0, 9.0] * 3)
+    pred = pd.DataFrame({"series": ["S0", "S1"] * 6, "part": "test", "actual": actual, "lstm": actual,
+                         "moving_average": actual + 1, "hist_mean_train": actual - 1,
+                         "hist_mean_trainval": actual + np.tile([1, -1], 6), "naive": actual + 2})
+    return pred
+
+
+def test_residual_bias_signs():
+    bias = residual_bias(fake_test_predictions()).set_index("series")
+    assert bias.loc["GLOBAL", "lstm"] == 0
+    assert bias.loc["GLOBAL", "moving_average"] == 1  # sobreestima
+    assert bias.loc["GLOBAL", "hist_mean_train"] == -1  # subestima
+    assert bias.loc["GLOBAL", "naive"] == 2
+
+
+def test_paired_bootstrap_intervals():
+    boot = paired_bootstrap(fake_test_predictions(), n=500).set_index("model")
+    assert np.isnan(boot.loc["lstm", "dmae_lo"])  # la referencia no se compara consigo misma
+    # Error constante: todos los remuestreos dan el mismo MAE, el intervalo es un punto.
+    assert boot.loc["naive", "mae_lo"] == pytest.approx(2.0)
+    assert boot.loc["naive", "mae_hi"] == pytest.approx(2.0)
+    assert boot.loc["naive", "dmae_lo"] == pytest.approx(2.0)  # 2 peor que la LSTM perfecta en todo remuestreo
+    assert set(boot.index) == set(MODELS)

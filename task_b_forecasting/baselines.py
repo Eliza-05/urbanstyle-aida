@@ -1,4 +1,4 @@
-"""Tarea B (Elizabeth): métricas (MAE, RMSE) y líneas base de pronóstico: ingenua y media móvil.
+"""Tarea B (Elizabeth): métricas (MAE, RMSE) y líneas base de pronóstico: ingenua, media móvil y media histórica.
 
 Todo trabaja en unidades reales (sin escalar). `values` es la matriz (semanas × series).
 """
@@ -27,6 +27,16 @@ def moving_average_forecast(values: np.ndarray, targets, k: int) -> np.ndarray:
     if min(targets) < k:
         raise ValueError("No hay k semanas de historia para todas las semanas objetivo")
     return np.array([values[t - k : t].mean(axis=0) for t in targets], dtype=float)
+
+
+def historical_mean_forecast(values: np.ndarray, targets, end: int) -> np.ndarray:
+    """Predice cada semana t como el promedio de las semanas 0 ... end-1 de su serie (un nivel fijo).
+
+    end = fin de train (solo entrenamiento) o fin de val (entrenamiento + validación). Para semanas
+    t < end la "predicción" usaría datos de esa misma semana, así que se devuelve NaN.
+    """
+    level = values[:end].mean(axis=0)
+    return np.array([level if t >= end else np.full_like(level, np.nan) for t in targets], dtype=float)
 
 
 def choose_k(values: np.ndarray, val_targets, candidates=K_CANDIDATES) -> tuple[int, dict]:

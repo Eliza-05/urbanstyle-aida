@@ -13,6 +13,7 @@ from common.ui import Button, Slider
 COLOR_REAL = (230, 230, 235)
 COLOR_LSTM = (90, 160, 255)
 COLOR_MA = (255, 160, 60)
+COLOR_HIST = (120, 200, 130)
 COLOR_GRID = (55, 60, 72)
 COLOR_TEST = (44, 48, 60)
 COLOR_MUTED = (160, 165, 180)
@@ -181,7 +182,7 @@ class ForecastScreen:
             x = PLOT.left + i / 5 * PLOT.width
             cat, gender = name.split("-")
             color = config.COLOR_TEXT if i == self.series_idx else COLOR_MUTED
-            anchor = "midtop" if 0 < i < 5 else ("topleft" if i == 0 else "topright")
+            anchor = {0: "topleft", 5: "topright"}.get(i, "midtop")  # los extremos no se salen del área
             self.text(surface, cat, (x, 540), self.font_small, color, anchor)
             self.text(surface, gender, (x, 556), self.font_small, color, anchor)
 
@@ -198,7 +199,7 @@ class ForecastScreen:
         for col, label in ((x + 150, "MAE"), (x + 215, "RMSE")):
             self.text(surface, label, (col, y), self.font_small, COLOR_MUTED)
         rows = (("LSTM", "lstm", COLOR_LSTM), (f"Media móvil k={k}", "moving_average", COLOR_MA),
-                ("Ingenua", "naive", COLOR_MUTED))
+                ("Media histórica", "hist_mean_trainval", COLOR_HIST), ("Ingenua", "naive", COLOR_MUTED))
         for title, block in ((self.series_name, metrics.loc[self.series_name]), ("Global (6 series)", metrics.loc["GLOBAL"])):
             y += 22
             self.text(surface, title, (x, y), self.font_small)

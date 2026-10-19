@@ -1,0 +1,8 @@
+series,lstm,moving_average,hist_mean_train,hist_mean_trainval,naive
+Clothing-Male,-1.059,0.656,2.694,2.023,0.25
+Clothing-Female,0.629,0.531,1.431,1.307,-0.375
+Beauty-Male,2.029,2.375,0.556,0.864,0.75
+Beauty-Female,-2.448,-1.5,-0.597,-0.989,-0.25
+Electronics-Male,0.807,1.656,-0.681,-0.352,1.375
+Electronics-Female,-0.75,-0.891,-2.389,-1.841,0.0
+GLOBAL,-0.132,0.471,0.169,0.169,0.292
