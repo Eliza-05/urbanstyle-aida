@@ -192,8 +192,8 @@ Prueba = las últimas 8 semanas (2023-11-05 a 2023-12-24) × 6 series = **48 pre
 
 ### 7.3 Interpretación honesta
 
-- **La LSTM y la media móvil quedan prácticamente empatadas.** La media móvil gana en MAE por 0.09 unidades/semana, una diferencia de solo ~2 desviaciones entre semillas. La LSTM gana en RMSE por 0.16, con las 5 semillas por debajo de 4.32: comete **menos errores grandes**. Por serie, cada modelo gana en la mitad de los casos.
-- **Las dos le ganan claramente a la ingenua:** ~29 % menos MAE y ~25 % menos RMSE. Copiar la semana anterior es la peor estrategia con series tan ruidosas.
+- **La LSTM y la media móvil quedan prácticamente empatadas.** La media móvil gana en MAE por 0.09 unidades/semana, una diferencia de solo ~2 desviaciones entre semillas. La LSTM gana en RMSE por 0.16, con las 5 semillas por debajo de 4.32: comete **menos errores grandes**. Por serie, en MAE cada modelo gana en 3 de las 6; en RMSE la LSTM gana en 4 de 6 (Clothing-Male queda empatada en 4.00 y Beauty-Female la gana la media móvil).
+- **Las dos le ganan claramente a la ingenua:** 28–30 % menos MAE y 23–25 % menos RMSE. Copiar la semana anterior es la peor estrategia con series tan ruidosas.
 - **La LSTM aprendió el nivel de cada serie, no una dinámica.** Sus predicciones casi no varían de una semana a otra: la desviación estándar de sus pronósticos es de 0.3 a 0.5 unidades, contra 4.3 a 5.2 de las ventas reales y 1.1 a 2.7 de la media móvil. Es coherente con el EDA: si las semanas casi no están correlacionadas, la mejor predicción bajo MSE es un nivel estable, y eso aprendió la red. Este comportamiento suaviza más que la media móvil y explica por qué gana en RMSE.
 - En validación, el checkpoint de semilla 42 tiene un MAE de 3.917 contra 3.859 de la media móvil. Su RMSE es menor: 4.564 contra 4.745.
 - **Mejoras honestas que se probaron (todas con validación):** ventana 4/8, ocultas 8/16/32, dropout 0/0.2, lr 0.001/0.005, y modelo por serie vs. compartido (§6). Ninguna configuración se separa del resto más allá del ruido entre semillas. Seguir ajustando con 8 semanas de validación sería ajustar ruido, así que se dejó así.
@@ -256,6 +256,7 @@ Para inventario, con un MAE de ~3.4 unidades sobre niveles de 6 a 10, conviene p
 - **Prueba pequeña:** 48 predicciones. Diferencias menores a ~0.1 unidades entre modelos no son concluyentes, y por eso se reporta la variabilidad entre semillas.
 - **El modelo final se entrenó solo con las 36 semanas de entrenamiento:** validación se usó para early stopping. Una alternativa habitual es reentrenar con train+val antes de pronosticar la próxima semana, pero no hay datos que permitan comprobar si mejora, así que no se hizo.
 - **Sin factores externos:** el dataset no trae promociones, festivos ni precios de la competencia. No hay estacionalidad anual medible con un solo año de datos.
+- **Transparencia sobre prueba:** durante el desarrollo (paso de líneas base) se imprimieron las métricas de prueba de todos los k candidatos. La elección de k la hizo `choose_k` automáticamente con validación, y ninguna decisión (k, ventana, hiperparámetros, tipo de modelo) se tomó mirando prueba.
 - **Python 3.13:** todo se ejecutó y verificó en Python 3.13.3, porque en la máquina de desarrollo no hay 3.11; falta verificarlo en 3.11.
 
 ## 11. Pruebas (`pytest`)
@@ -269,3 +270,21 @@ Para inventario, con un MAE de ~3.4 unidades sobre niveles de 6 a 10, conviene p
   - alineación de los tres modelos en las mismas semanas y pronóstico de la próxima semana;
   - checkpoint real + pantalla headless (se salta si no hay CSV o checkpoint).
 - **Ninguna prueba entrena.** Suite completa: 29 pruebas en ~6–10 s, sobre todo por la importación de torch. Sin el CSV ni el checkpoint: 27 pasan y 2 se saltan (comprobado en una copia del repo sin esos archivos).
+
+## 12. Auditoría final de la Tarea B (checklist §11 del plan + enunciado)
+
+| Requisito | Estado | Evidencia |
+|---|---|---|
+| 5–8 categorías (series) acordadas con el profesor | ✅ | 6 series Categoría × Género, cita del profesor (§2.1), texto en la pantalla |
+| Hipótesis de semanas vacías justificada | ✅ | §2.5 (21 días sin datos, nunca 2 seguidos; ceros por serie) |
+| Series de tiempo semanales | ✅ | `weekly_series`, 52 semanas Dom–Sáb, `test_integration_real_csv` |
+| División cronológica sin fuga | ✅ | `prepare.py`, `test_scaler_uses_only_train_weeks`, `test_train_windows_never_touch_val_or_test` |
+| LSTM pequeña entrenada y guardada con lo necesario | ✅ | `models/lstm_forecast.pt` (pesos + escalador + ventana + series + hiperparámetros), recarga idéntica |
+| Predicción de la siguiente semana | ✅ | `outputs/task_b/next_week.csv`, panel de la pantalla |
+| MAE y RMSE en unidades reales | ✅ | `outputs/task_b/metrics.csv`, verificado con sklearn |
+| Bonus: media móvil en las mismas semanas | ✅ | 48 predicciones de prueba idénticas para los 3 modelos (`test_build_predictions_aligns_models_on_same_weeks`) |
+| Bonus: exportación CSV | ✅ | `outputs/task_b/predictions.csv` y botón en la pantalla |
+| Pantalla: gráfica del pronóstico + slider de categoría | ✅ | `screen.py`, `outputs/task_b/screen_task_b.png`, prueba headless |
+| Pruebas pasan; evidencias guardadas | ✅ | 29 pruebas en pytest; gráficas y tablas en `outputs/task_b/` |
+| Reproducibilidad (semilla, CPU, rutas relativas) | ✅ | reentrenar da pesos idénticos al bit; sin rutas absolutas |
+| Python 3.11 | ⚠️ | verificado en 3.13.3; falta probar en 3.11 |
