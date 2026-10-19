@@ -106,3 +106,19 @@ Se usa un `MinMaxScaler` (como en los notebooks de clase) **por serie**, ajustad
 Cada ejemplo usa como entrada las `window` semanas anteriores de una serie y como objetivo la semana siguiente. Así una serie de 52 semanas se convierte en pares (entrada, objetivo). Una ventana de entrenamiento solo usa semanas < 36, tanto en la entrada como en el objetivo. Las ventanas de validación y prueba sí pueden incluir semanas anteriores de otras partes en la **entrada**: es la historia real que se conoce el día del pronóstico. El **objetivo** siempre pertenece a la parte que se evalúa. El tamaño de ventana (4 u 8) se elige con validación (§6).
 
 **Pruebas que demuestran que no hay fuga** (`tests/test_forecasting.py`): `test_scaler_uses_only_train_weeks` (alterar val/test no cambia el escalador), `test_train_windows_never_touch_val_or_test` (ninguna entrada ni objetivo de train viene de una semana ≥ 36), `test_test_windows_target_only_test_weeks`, más pruebas de forma de los tensores y del contenido exacto de una ventana.
+
+## 5. Líneas base (`task_b_forecasting/baselines.py`)
+
+- **Ingenua:** la semana t vende lo mismo que la t−1.
+- **Media móvil:** la semana t vende el promedio de las k semanas anteriores. Se usa **un mismo k** para las 6 series, elegido **solo con validación** entre {2, 3, 4, 6, 8, 12}. Con 8 semanas de validación por serie, un k distinto por serie sobreajustaría la propia línea base.
+
+| k | MAE val | RMSE val |
+|---|---|---|
+| 2 | 5.021 | 5.819 |
+| 3 | 4.549 | 5.504 |
+| 4 | 4.234 | 5.276 |
+| 6 | 4.094 | 5.081 |
+| **8** | **3.859** | **4.745** |
+| 12 | 3.884 | 4.787 |
+
+→ **k = 8**. El error baja a medida que k crece, lo que confirma el EDA: el ruido es tan grande que promediar más semanas ayuda. MAE y RMSE se verifican a mano (`test_metrics_by_hand`) y contra `sklearn.metrics` (`test_metrics_match_sklearn`).

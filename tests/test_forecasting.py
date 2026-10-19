@@ -2,6 +2,13 @@
 import numpy as np
 import pytest
 
+from task_b_forecasting.baselines import (
+    choose_k,
+    mae,
+    moving_average_forecast,
+    naive_forecast,
+    rmse,
+)
 from task_b_forecasting.prepare import (
     chronological_split,
     fit_scaler,
@@ -92,3 +99,42 @@ def test_test_windows_target_only_test_weeks():
 def test_split_too_short_raises():
     with pytest.raises(ValueError):
         chronological_split(10)
+
+
+# ---------- métricas y líneas base ----------
+
+
+def test_metrics_by_hand():
+    # errores: 1, -2, 3 -> MAE = 6/3 = 2 ; RMSE = sqrt((1+4+9)/3) = sqrt(14/3)
+    y_true = [10, 5, 8]
+    y_pred = [9, 7, 5]
+    assert mae(y_true, y_pred) == pytest.approx(2.0)
+    assert rmse(y_true, y_pred) == pytest.approx(np.sqrt(14 / 3))
+    assert rmse(y_true, y_pred) >= mae(y_true, y_pred)  # RMSE nunca es menor que MAE
+
+
+def test_metrics_match_sklearn():
+    from sklearn.metrics import mean_absolute_error, mean_squared_error
+    rng = np.random.default_rng(0)
+    a, b = rng.integers(0, 20, 50), rng.integers(0, 20, 50)
+    assert mae(a, b) == pytest.approx(mean_absolute_error(a, b))
+    assert rmse(a, b) == pytest.approx(np.sqrt(mean_squared_error(a, b)))
+
+
+def test_naive_and_moving_average_by_hand():
+    values = np.array([[2.0], [4.0], [6.0], [10.0], [0.0]])
+    assert naive_forecast(values, [4])[0, 0] == 10.0
+    assert moving_average_forecast(values, [4], k=3)[0, 0] == pytest.approx((4 + 6 + 10) / 3)
+    assert moving_average_forecast(values, [3], k=3)[0, 0] == pytest.approx(4.0)
+    with pytest.raises(ValueError):
+        moving_average_forecast(values, [1], k=3)
+
+
+def test_choose_k_uses_only_given_targets():
+    # Serie constante en 5 hasta la semana 19 y luego 50: con objetivos 10..19 todo k es perfecto,
+    # y el salto posterior (como si fuera prueba) no puede influir en la elección.
+    values = np.full((30, 1), 5.0)
+    values[20:] = 50.0
+    best, scores = choose_k(values, range(10, 20), candidates=(2, 4, 8))
+    assert all(s == (0.0, 0.0) for s in scores.values())
+    assert best == 2
