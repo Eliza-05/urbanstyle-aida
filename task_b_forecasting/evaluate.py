@@ -80,7 +80,7 @@ def forecast_next_week(models, ckpt: dict, data) -> pd.DataFrame:
     padded = np.vstack([scaled, np.zeros((1, scaled.shape[1]))])
     lstm, _, _ = predict_units(models, padded, ckpt["window"], [n], scaler)
     ma = data.values[n - ckpt["ma_k"] :].mean(axis=0)
-    week = data.weekly.index[-1] + pd.Timedelta(days=7)
+    week = data.weekly.index[-1] + pd.Timedelta(7, unit="D")
     return pd.DataFrame({
         "week_start": week.date(),
         "series": ckpt["series_names"],
@@ -216,7 +216,7 @@ def plot_forecasts(results, path) -> None:
         ax.plot(weeks, p["hist_mean_trainval"], color="tab:green", lw=1.2, ls=":", label="media histórica (train+val)")
         n = nxt[nxt["series"] == name].iloc[0]
         ax.plot(pd.Timestamp(n["week_start"]), n["lstm"], "*", color="tab:blue", ms=12, label="próxima semana (LSTM)")
-        ax.axvspan(test_start, weekly.index[-1] + pd.Timedelta(days=3), color="gray", alpha=0.15)
+        ax.axvspan(test_start, weekly.index[-1] + pd.Timedelta(3, unit="D"), color="gray", alpha=0.15)
         ax.set_title(name)
         ax.grid(alpha=0.3)
     axes[0, 0].legend(fontsize=8, loc="upper left")

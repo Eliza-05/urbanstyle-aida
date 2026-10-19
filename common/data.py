@@ -92,14 +92,14 @@ def weekly_series(df: pd.DataFrame, target: str = "units", week_start: str = WEE
         df = add_segments(df)
 
     weeks = week_start_of(df["Date"], week_start)
-    one_week = pd.Timedelta(days=7)
+    one_week = pd.Timedelta(7, unit="D")
     # Primera semana completa: si el df no empieza justo el primer día de su semana, se salta esa semana.
     first_full = weeks.min()
     if df["Date"].min().normalize() > first_full:
         first_full += one_week
     # Última semana completa: si el df termina antes del último día de su semana, se descarta.
     last_full = weeks.max()
-    if df["Date"].max().normalize() < last_full + pd.Timedelta(days=6):
+    if df["Date"].max().normalize() < last_full + pd.Timedelta(6, unit="D"):
         last_full -= one_week
 
     all_weeks = pd.date_range(first_full, last_full, freq="7D", name="week_start")

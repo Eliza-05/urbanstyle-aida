@@ -416,6 +416,7 @@ Para inventario, con un MAE de ~3.4 unidades sobre niveles de 6 a 10, conviene p
 | 5 | La decisión train vs. train+val para el pronóstico final no estaba evaluada | Backtest sin tocar prueba (`retrain_check.py`): no se reentrena (§7.4) |
 | 6 | El ciclo de entrenamiento no permitía entrenar sin validación (necesario para el backtest) | `train_model` acepta `X_va=None` (épocas fijas); el paso de época se extrajo en `_train_one_epoch` para no duplicar código |
 | 7 | La conclusión "LSTM gana en RMSE" sonaba a ventaja | Reescrita: la diferencia no es significativa y la media histórica tiene el menor error (§7.3) |
+| 8 | En el clon limpio (numpy 2.5 + pandas 2.3), `Timestamp + pd.Timedelta(days=7)` emite un aviso de deprecación que numpy convertirá en error en el futuro | Se usa `pd.Timedelta(7, unit="D")`; el clon limpio queda sin avisos y `evaluate` corre aun tratando los avisos como errores |
 
 Se comprobaron sin hallar errores:
 - el agrupado semanal (suma 2508 = filas, la semana 2023-11-05 de Clothing-Male recalculada desde las transacciones: 10 = 10);

@@ -247,7 +247,7 @@ def test_forecast_next_week_is_the_week_after_the_data():
     data = fake_data()
     nxt = forecast_next_week(untrained_models(), fake_ckpt(data, k=3), data)
     assert len(nxt) == N_SERIES
-    assert nxt["week_start"].iloc[0] == (data.weekly.index[-1] + pd.Timedelta(days=7)).date()
+    assert nxt["week_start"].iloc[0] == (data.weekly.index[-1] + pd.Timedelta(7, unit="D")).date()
     np.testing.assert_allclose(nxt["moving_average"], data.values[-3:].mean(axis=0))
 
 
