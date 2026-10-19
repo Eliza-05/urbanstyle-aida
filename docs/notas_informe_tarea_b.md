@@ -214,3 +214,17 @@ Para inventario, con un MAE de ~3.4 unidades sobre niveles de 6 a 10, conviene p
 ### 7.5 Exportación (bonus)
 
 `outputs/task_b/predictions.csv`: 270 filas con columnas `week_start, series, part, actual, lstm, moving_average, naive`. `part` ∈ {train (168), val (48), test (48), next_week (6)}; `actual` está vacío solo en `next_week`. Las filas de train y val se incluyen para graficar; las métricas usan solo `test`. La pantalla tiene un botón que regenera este archivo.
+
+## 8. Pantalla Pygame (`task_b_forecasting/screen.py`)
+
+- **Control del enunciado:** un **slider para elegir la serie** (6 posiciones; también funcionan las flechas ← →). No se agregó el slider de duración de entrenamiento: el enunciado pide categoría **o** duración, y ese control exigiría cargar modelos distintos entrenados con cada duración.
+- **Gráfica:** ventas reales de las 52 semanas, predicción de la LSTM (línea azul), media móvil k=8 (línea naranja punteada), zona de prueba sombreada y punto de la próxima semana.
+- **Panel derecho:**
+  - MAE y RMSE en prueba de LSTM, media móvil e ingenua, para la serie elegida y global.
+  - Pronóstico de la próxima semana, LSTM ± su MAE y media móvil.
+- **Botones y textos:**
+  - Botón **Exportar CSV**, que regenera `outputs/task_b/predictions.csv` y lo confirma en pantalla.
+  - Botón **Volver** o tecla ESC.
+  - Texto fijo: "3 categorías originales × género = 6 series".
+- **Solo carga el modelo:** carga `models/lstm_forecast.pt` y nunca entrena. torch se importa solo al entrar a la pantalla, para que el menú abra rápido, y los resultados quedan en caché. Si falta el checkpoint, muestra el comando para entrenarlo en vez de fallar.
+- **Verificación headless** (`SDL_VIDEODRIVER=dummy`): el clic en el slider cambia a Beauty-Female y la flecha derecha a Electronics-Male; la exportación muestra el mensaje y ESC cierra la pantalla. Desde `main.py`, clic en "Tarea B" → slider → ESC → cerrar ventana termina limpio. Las capturas de las 6 series y de la pantalla de error se revisaron a ojo. Captura: `outputs/task_b/screen_task_b.png`.
