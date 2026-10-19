@@ -1,0 +1,12 @@
+# Debe funcionar en CPU, sin GPU.
+# Rangos compatibles con Python 3.11 (sin versiones exactas).
+pygame>=2.5,<3
+numpy>=1.26,<3
+pandas>=2.1,<3
+scikit-learn>=1.3,<2
+matplotlib>=3.8,<4
+torch>=2.2,<3
+torchvision>=0.17,<1
+gymnasium>=0.29,<2
+stable-baselines3>=2.3,<3
+pytest>=8,<10

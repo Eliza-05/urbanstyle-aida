@@ -218,3 +218,21 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- UrbanStyle ---
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.ipynb_checkpoints/
+.idea/
+.vscode/
+.DS_Store
+# Datasets que torchvision descarga solos
+data/FashionMNIST/
+data/MNIST/
+# Artefactos de entrenamiento
+logs/
+runs/
+checkpoints/
+*.log
