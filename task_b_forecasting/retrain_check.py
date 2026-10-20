@@ -4,7 +4,7 @@ Se repite la situación 8 semanas antes, usando solo las semanas 0-43:
   A) como el modelo actual: entrena con 0-27 y hace early stopping con 28-35;
   B) reentrenado: entrena con 0-35 (escalador ajustado con 0-35) durante las épocas que eligió A.
 Ambos predicen las semanas 36-43, que ninguno vio. Se repite con 5 semillas.
-Uso: python -m task_b_forecasting.retrain_check  →  outputs/task_b/retrain_check.csv
+Uso: python -m task_b_forecasting.retrain_check  →  outputs/task_b/training/retrain_check.csv
 """
 import pandas as pd
 import torch
@@ -12,7 +12,8 @@ import torch
 from common import config
 from task_b_forecasting.baselines import mae, rmse
 from task_b_forecasting.prepare import TEST_WEEKS, VAL_WEEKS, make_windows
-from task_b_forecasting.train import HPARAMS, OUT_DIR, load_data, predict_units, train_model, train_per_series
+from task_b_forecasting.paths import TRAINING_DIR
+from task_b_forecasting.train import HPARAMS, load_data, predict_units, train_model, train_per_series
 
 SEEDS = [config.SEED + i for i in range(5)]
 
@@ -48,8 +49,8 @@ def main() -> None:
                      "B_trainval_mae": mae(actual, pred_b), "B_trainval_rmse": rmse(actual, pred_b)})
 
     results = pd.DataFrame(rows)
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    results.round(4).to_csv(OUT_DIR / "retrain_check.csv", index=False)
+    TRAINING_DIR.mkdir(parents=True, exist_ok=True)
+    results.round(4).to_csv(TRAINING_DIR / "retrain_check.csv", index=False)
     print(results.round(3).to_string(index=False))
     print(results.drop(columns="seed").agg(["mean", "std"]).round(3).to_string())
     diff = results["B_trainval_mae"] - results["A_train_mae"]

@@ -2,7 +2,7 @@
 
 Compara (A) una LSTM por serie contra (B) una LSTM compartida con one-hot de la serie, en una grilla
 pequeña de ventana, tamaño oculto, dropout y tasa de aprendizaje, con 3 semillas por configuración.
-Uso: python -m task_b_forecasting.tune  →  outputs/task_b/tuning_results.csv
+Uso: python -m task_b_forecasting.tune  →  outputs/task_b/training/tuning_results.csv
 """
 import itertools
 import time
@@ -13,7 +13,8 @@ import torch
 
 from task_b_forecasting.baselines import mae, rmse
 from task_b_forecasting.model import predict_scaled
-from task_b_forecasting.train import HPARAMS, OUT_DIR, load_data, train_model, unscale, windows_for
+from task_b_forecasting.paths import TRAINING_DIR
+from task_b_forecasting.train import HPARAMS, load_data, train_model, unscale, windows_for
 
 SEEDS = (0, 1, 2)
 GRID = {"window": (4, 8), "hidden_size": (2, 4, 8, 16, 32), "dropout": (0.0, 0.2), "lr": (0.001, 0.005)}
@@ -59,8 +60,8 @@ def main() -> None:
         })
         print(rows[-1])
     results = pd.DataFrame(rows).sort_values("val_mae_mean")
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    results.round(4).to_csv(OUT_DIR / "tuning_results.csv", index=False)
+    TRAINING_DIR.mkdir(parents=True, exist_ok=True)
+    results.round(4).to_csv(TRAINING_DIR / "tuning_results.csv", index=False)
     print(f"\n{time.time() - t0:.0f} s\n", results.round(3).to_string(index=False))
     print("\nMejor por tipo de modelo:")
     print(results.groupby("model").head(1).round(3).to_string(index=False))

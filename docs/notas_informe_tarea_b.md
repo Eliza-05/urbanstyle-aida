@@ -15,7 +15,7 @@
 | 4 | Predecir las ventas de la siguiente semana | `evaluate.py` → `forecast_next_week` |
 | 5 | Evaluar con MAE y RMSE | `evaluate.py` |
 | Pygame | Gráfica del pronóstico, slider para elegir categoría **o** duración del entrenamiento | `screen.py` (slider de serie) |
-| Bonus | Línea base de media móvil; exportar predicciones a CSV | `baselines.py`, `outputs/task_b/predictions.csv` |
+| Bonus | Línea base de media móvil; exportar predicciones a CSV | `baselines.py`, `outputs/task_b/export/predictions.csv` |
 
 Rúbrica: 20 % (preparación de series, LSTM funcionando, MAE y RMSE reportados; bonus: comparación con línea base y exportación CSV).
 El PDF y `docs/UrbanStyle_Plan_de_Trabajo.md` (§5.2) coinciden en todos los puntos de la Tarea B.
@@ -76,7 +76,7 @@ Firma estable: `pricing_stats(df, by=("Product Category", "Gender")) -> DataFram
 
 ## 3. Análisis exploratorio (`python -m task_b_forecasting.eda`)
 
-Salidas: `outputs/task_b/eda_series.png`, `eda_dispersion.png` y `eda_stats.csv`.
+Salidas: `outputs/task_b/eda/eda_series.png`, `eda_dispersion.png` y `eda_stats.csv`.
 
 | Serie | Unidades totales | Media/sem | Desv. | CV | Máx | Semanas en 0 | ACF lag 1 |
 |---|---|---|---|---|---|---|---|
@@ -147,7 +147,7 @@ Cada ejemplo usa como entrada las `window` semanas anteriores de una serie y com
 - **(A) por serie:** 6 LSTM independientes. Entrada: la serie sola.
 - **(B) compartida:** una LSTM para las 6 series, con el one-hot de la serie concatenado a cada paso. Se eligió one-hot y no un *embedding* porque es lo más simple y se vio en clase.
 
-Grilla: ventana {4, 8} × ocultas {2, 4, 8, 16, 32} × dropout {0, 0.2} × lr {0.001, 0.005} = 40 configuraciones por opción, 80 en total (`outputs/task_b/tuning_results.csv`).
+Grilla: ventana {4, 8} × ocultas {2, 4, 8, 16, 32} × dropout {0, 0.2} × lr {0.001, 0.005} = 40 configuraciones por opción, 80 en total (`outputs/task_b/training/tuning_results.csv`).
 
 | Opción | Mejor configuración | MAE val (media ± desv., 3 semillas) | RMSE val | Mejor época media |
 |---|---|---|---|---|
@@ -188,7 +188,7 @@ Grilla: ventana {4, 8} × ocultas {2, 4, 8, 16, 32} × dropout {0, 0.2} × lr {0
   - la pérdida de entrenamiento baja de 0.21–0.38 (época 0) a 0.04–0.07;
   - la de validación baja de 0.17–0.29 a 0.03–0.06 en la mejor época;
   - el early stopping restaura esos pesos (`best_state`), y la última época tiene igual o peor validación (p. ej. Clothing-Male 0.054 → 0.070).
-- **Curvas** (`outputs/task_b/loss_curve.png`): la pérdida de validación baja hasta la mejor época y luego queda plana o sube un poco. Es una señal leve de sobreajuste que el early stopping corta. **No hay subajuste grave:** el error de entrenamiento se aplana porque lo que queda es ruido. La validación queda por debajo de entrenamiento porque el dropout solo actúa al entrenar y porque la pérdida de entrenamiento es un promedio durante la época.
+- **Curvas** (`outputs/task_b/training/loss_curve.png`): la pérdida de validación baja hasta la mejor época y luego queda plana o sube un poco. Es una señal leve de sobreajuste que el early stopping corta. **No hay subajuste grave:** el error de entrenamiento se aplana porque lo que queda es ruido. La validación queda por debajo de entrenamiento porque el dropout solo actúa al entrenar y porque la pérdida de entrenamiento es un promedio durante la época.
 - **Tamaño de la red vs. datos:** 361 parámetros por LSTM para 32 ventanas de 4 semanas (128 valores de entrada). Nominalmente hay más parámetros que ejemplos, así que la red **podría** memorizar. Que no lo haga se debe a tres frenos: el early stopping corta en la época 15–59, antes de memorizar; el dropout; y que sus predicciones casi no varían (desviación de 0.3–0.5 unidades, §7.3), es decir, no está copiando el ruido de entrenamiento. Una red más chica (h=2) no fue mejor (§6.3).
 - **Checkpoint** `models/lstm_forecast.pt` (21 KB): pesos de las 6 LSTM, `scaler_min`/`scaler_max`, ventana, nombres de las series, hiperparámetros, límites del split, k de la media móvil, semilla y mejores épocas. Al recargarlo, las predicciones son **idénticas** (comprobado en `train.py` y en `tests/`).
 - **Reproducibilidad:**
@@ -231,7 +231,7 @@ MAE / RMSE:
 | Ingenua | 4.792 | 5.579 | [4.00, 5.63] | [4.77, 6.33] | **[+0.56, +2.23]** | **[+0.71, +2.18]** |
 | *Referencia inalcanzable:* oráculo con la media real de prueba de cada serie | 3.151 | 3.845 | | | | |
 
-\* Intervalos del checkpoint de semilla 42 (MAE 3.401, RMSE 4.121). Fuente: `outputs/task_b/bootstrap.csv` y `seed_results.csv`.
+\* Intervalos del checkpoint de semilla 42 (MAE 3.401, RMSE 4.121). Fuente: `outputs/task_b/metrics/bootstrap.csv` y `seed_results.csv`.
 
 **Método de significancia: bootstrap pareado** (`paired_bootstrap`, 10 000 repeticiones, semilla fija).
 - En cada repetición se eligen al azar, con reemplazo, 48 de las 48 filas (semana, serie), **las mismas para todos los modelos**, y se recalculan MAE, RMSE y la diferencia con la LSTM.
@@ -260,7 +260,7 @@ El argumento, paso a paso y con números:
 - La diferencia **no es significativa** (intervalos [−0.56, +0.24] y [−0.50, +0.40]).
 - **Conclusión práctica:** en este dataset, un promedio simple rinde igual que la LSTM. La LSTM cumple el requisito del enunciado y aprende lo correcto, pero no aporta precisión adicional, porque no hay dinámica temporal que explotar. Si se requiriera un modelo en producción con estos datos, el promedio sería la opción más económica.
 
-**Residuos en prueba** (error medio = predicción − real; `outputs/task_b/residuals.csv`):
+**Residuos en prueba** (error medio = predicción − real; `outputs/task_b/metrics/residuals.csv`):
 
 | Serie | LSTM | Media móvil | Media hist. (train+val) |
 |---|---|---|---|
@@ -290,7 +290,7 @@ Ninguna se separa del resto más allá del ruido. Seguir ajustando con 8 semanas
 - La entrada de la LSTM son las **últimas 4 semanas observadas** (las que empiezan el 2023-12-03, 10, 17 y 24); la media móvil usa las últimas 8. Lo comprueba `test_forecast_next_week_is_the_week_after_the_data`.
 - El CSV tiene 3 transacciones del 31-dic y 1-ene, que están fuera de las 52 semanas completas (§2.3). Esa semana está incompleta en los datos, así que no hay valor real con qué comparar.
 
-**¿Reentrenar con train+val para el pronóstico final?** Se decidió con un backtest que **no toca prueba** (`python -m task_b_forecasting.retrain_check`, `outputs/task_b/retrain_check.csv`). Se repite la situación 8 semanas antes y se predicen las semanas 36–43, que ninguno de los dos modelos vio:
+**¿Reentrenar con train+val para el pronóstico final?** Se decidió con un backtest que **no toca prueba** (`python -m task_b_forecasting.retrain_check`, `outputs/task_b/training/retrain_check.csv`). Se repite la situación 8 semanas antes y se predicen las semanas 36–43, que ninguno de los dos modelos vio:
 - **A (como el modelo actual):** entrena con las semanas 0–27 y hace early stopping con 28–35.
 - **B (reentrenado):** entrena con 0–35 durante las épocas que eligió A, con el escalador ajustado a 0–35.
 
@@ -317,7 +317,7 @@ Para inventario, con un MAE de ~3.4 unidades sobre niveles de 6 a 10, conviene p
 
 ### 7.5 Exportación (bonus)
 
-`outputs/task_b/predictions.csv` tiene 270 filas.
+`outputs/task_b/export/predictions.csv` tiene 270 filas. El mismo botón genera también `predictions_excel.csv` (separador `;`, coma decimal, 2 decimales, UTF-8 con BOM) para abrirlo directo en Excel en español; el detalle de cada columna está en `outputs/task_b/README.md`.
 - **Columnas:** `week_start, series, part, actual, lstm, moving_average, hist_mean_train, hist_mean_trainval, naive`.
 - **`part`** ∈ {train (168), val (48), test (48), next_week (6)}.
 - **`actual`** está vacío solo en `next_week`.
@@ -326,22 +326,56 @@ Para inventario, con un MAE de ~3.4 unidades sobre niveles de 6 a 10, conviene p
 
 ## 8. Pantalla Pygame (`task_b_forecasting/screen.py`)
 
-- **Control del enunciado:** un **slider para elegir la serie** (6 posiciones; también funcionan las flechas ← →). No se agregó el slider de duración de entrenamiento: el enunciado pide categoría **o** duración, y ese control exigiría cargar modelos distintos entrenados con cada duración.
-- **Gráfica:** ventas reales de las 52 semanas, predicción de la LSTM (línea azul), media móvil k=8 (línea naranja punteada), zona de prueba sombreada y punto de la próxima semana.
+Objetivo de diseño: que en 5 segundos se lea cuánto se vendió cada semana, qué predice cada modelo, qué tan bueno es cada uno y cuánto se venderá la próxima semana. Estilo de dashboard en modo oscuro, pensado para presentarse compartiendo pantalla. La pantalla **solo carga** `models/lstm_forecast.pt` y los archivos de `outputs/task_b/`; nunca entrena ni recalcula métricas.
+
+- **Fila de 3 tarjetas KPI** de la serie elegida: *Próxima semana · LSTM* (valor ± MAE de validación), *Ventas última semana* (24–30 dic) y *MAE LSTM en prueba*. Los números grandes se ajustan al ancho de la tarjeta.
+- **Control del enunciado:** un **slider para elegir la serie**.
+  - El control sigue al mouse mientras se arrastra y, al soltarlo, encaja en la serie más cercana.
+  - También se puede elegir con un clic en el nombre de la serie o con las flechas ← →.
+  - No se agregó el slider de duración de entrenamiento: el enunciado pide categoría **o** duración, y ese control exigiría modelos distintos entrenados con cada duración.
+- **Gráfica:**
+  - **Barras grises** con las ventas reales de las 52 semanas.
+  - **LSTM** como línea azul, con una **banda sombreada de ± MAE de validación** de esa serie.
+  - **Media móvil** (8 semanas) como línea naranja punteada; **media histórica** (semanas 1–44) como línea verde horizontal en la zona de prueba.
+  - Zona de **prueba** sombreada y una zona aparte **"Próxima semana" (31-dic – 06-ene-2024)**, con el punto de la LSTM, su barra de error ± MAE de validación y el valor escrito.
+- **Transición:** al cambiar de serie, barras, líneas, banda y eje Y se interpolan durante 250 ms.
+- **Ícono ⓘ junto al título de la gráfica** (antes eran notas fijas al pie): al pasar el mouse explica por qué la LSTM empieza en la semana 5 y muestra la cobertura de la banda.
+  - La LSTM empieza en la semana 5 porque necesita 4 semanas previas; la media móvil empieza en la 9. La pantalla calcula esas 4 semanas extra con el **mismo** modelo guardado, sin entrenar, y coinciden con `predictions.csv` donde se solapan (prueba automática).
+  - La cobertura de la banda es el conteo real de semanas de prueba dentro de ella, por serie:
+
+  | Serie | Dentro de la banda (de 8 semanas de prueba) |
+  |---|---|
+  | Clothing-Male | 4 |
+  | Clothing-Female | 2 |
+  | Beauty-Male | 6 |
+  | Beauty-Female | 6 |
+  | Electronics-Male | 5 |
+  | Electronics-Female | 5 |
+  | **Las 6 series** | **28 de 48 (58 %)** |
+
+  Por eso **no** se usa la frase fija "la mayoría de semanas caen dentro de la banda": es cierta en el total y en 4 series, pero no en Clothing-Female (2/8) ni en Clothing-Male (4/8, justo la mitad). Que ~58 % caiga dentro de ± MAE es lo esperable: el MAE es el error *promedio*, no un intervalo de confianza.
+- **Leyenda interactiva:** un clic en cada elemento lo muestra u oculta (un elemento oculto aparece tachado). La pista "Clic para mostrar u ocultar" aparece solo al pasar el mouse, y el cursor cambia a mano sobre todo lo que se puede pulsar.
+- **Tooltip:** al pasar el mouse por una semana se ven la fecha, el valor real, LSTM, media móvil, media histórica y el tramo (entrenamiento, validación o prueba), con una línea vertical guía. Sobre la zona de próxima semana muestra el pronóstico.
 - **Panel derecho:**
-  - MAE y RMSE en prueba de LSTM, media móvil, media histórica (train+val) e ingenua, para la serie elegida y global.
-  - Pronóstico de la próxima semana, LSTM ± su MAE y media móvil.
-- **Botones y textos:**
-  - Botón **Exportar CSV**, que regenera `outputs/task_b/predictions.csv` y lo confirma en pantalla.
-  - Botón **Volver** o tecla ESC.
+  - **Una sola tabla MAE/RMSE en prueba** con un selector segmentado **"Esta serie | Global (6)"** (por defecto, esta serie). El **mejor valor de cada columna** va resaltado en una píldora, la fila *Ingenua* va en tono más tenue (es la referencia mínima) y cada modelo lleva el mismo color que en la gráfica.
+  - **Nota de significancia** en una tarjeta de información, redactada a partir de `outputs/task_b/metrics/bootstrap.csv`: "LSTM, media móvil y media histórica: sin diferencia significativa (bootstrap 95 %)"
+  - La próxima semana ya no se repite en el panel: está en el KPI y en la zona "Próxima" de la gráfica, cuyo tooltip muestra también la media móvil y la media histórica.
+- **Botones:**
+  - **Exportar CSV** (en el encabezado) regenera `predictions.csv` y `predictions_excel.csv` en `outputs/task_b/export/` y muestra el aviso temporal "Exportado: predictions.csv y predictions_excel.csv en outputs/task_b/export/".
+  - **← Menú (Esc)** vuelve al menú.
   - Texto fijo: "3 categorías originales × género = 6 series".
-- **Solo carga el modelo:** carga `models/lstm_forecast.pt` y nunca entrena. torch se importa solo al entrar a la pantalla, para que el menú abra rápido, y los resultados quedan en caché. Si falta el checkpoint, muestra el comando para entrenarlo en vez de fallar.
+- **Tema visual único** (`common/ui.py`, clase `THEME`): fondo #0B0F19 con resplandor violeta, marca violeta #7C5CFF → fucsia #D946EF, tarjetas tipo vidrio con sombra difusa y esquinas de 16 px. Colores por modelo: LSTM #22D3EE, media móvil #F59E0B, media histórica #34D399, ingenua #94A3B8. Fuente **Inter** (SIL OFL, en `assets/fonts/` con `OFL.txt`) en regular, medium, semibold y bold. Textos de al menos 14 px lógicos. El menú usa el mismo tema, y las tareas A, C y D pueden reutilizarlo.
+- **Nitidez en Windows:** el proceso es consciente de DPI y la ventana se crea en píxeles físicos (escala 1,5 → 1536×960 en la máquina de desarrollo). Fuentes, grosores, radios y márgenes se escalan con `ui.px()`. Texto, líneas y círculos se dibujan con antialias.
+- **Microinteracciones:** hover con brillo y elevación (180 ms), aparición suave al entrar a una pantalla, halo en el control del slider al arrastrarlo, transición de 250 ms al cambiar de serie.
+- **Rendimiento** (a 1536×960, headless; presupuesto a 60 FPS: 16,6 ms):
+  - el fondo, las sombras, los degradados y las tarjetas se pre-renderizan una vez;
+  - KPI, panel y gráfica se redibujan en un búfer solo cuando cambia su estado;
+  - tiempos medidos: ~1,4 ms por cuadro en reposo, ~5 ms durante la transición de serie y ~8 ms con el mouse recorriendo semanas (tooltip).
 - **Verificación headless** (`SDL_VIDEODRIVER=dummy`):
-  - el clic en el slider cambia a Beauty-Female y la flecha derecha a Electronics-Male;
-  - la exportación muestra el mensaje y ESC cierra la pantalla;
-  - desde `main.py`, clic en "Tarea B" → slider → ESC → cerrar ventana termina limpio;
-  - las capturas de las 6 series y de la pantalla de error se revisaron a ojo.
-  - Captura: `outputs/task_b/screen_task_b.png`.
+  - **Capturas** a escala 1,0 y 1,5 revisadas a ojo: estado inicial, tooltip, leyenda con elementos ocultos, arrastre, transición a mitad de animación y aviso de exportación. Una comprobación automática recorre las 6 series y mide que ningún texto quede a menos de 8 px lógicos del borde de su tarjeta.
+  - **Flujo completo** desde `main.py`: menú → Tarea B → arrastre del slider → leyenda → hover → exportar → ESC → salir, sin errores.
+  - **CSV exportado** idéntico al bit al anterior.
+  - **Capturas guardadas** en `outputs/task_b/figures/`, a escala real (1536×960) y al 75 %: `screen_task_b.png`, `screen_task_b_global.png` (selector en Global), `screen_task_b_info.png` (ayuda ⓘ visible), `menu.png`, `menu_hover.png` (y sus `_75`), más `screen_task_b_tooltip.png` y `screen_task_b_antes.png`.
 
 ## 9. Fundamentos teóricos (para la sustentación)
 
@@ -374,20 +408,22 @@ Para inventario, con un MAE de ~3.4 unidades sobre niveles de 6 a 10, conviene p
   - durante el desarrollo se imprimieron las métricas de prueba de todos los k candidatos de la media móvil y de la configuración h=2;
   - k se eligió automáticamente con validación, y h=2 se descartó por su dinámica de entrenamiento (§6.3);
   - ninguna decisión se tomó para mejorar el resultado en prueba.
-- **Python 3.13:** todo se ejecutó y verificó en Python 3.13.3, porque en la máquina de desarrollo no hay 3.11; falta verificarlo en 3.11.
+- **Python 3.13:** todo se ejecutó y verificó en Python 3.13.3, que es la versión documentada del proyecto (README y plan de trabajo).
 
 ## 11. Pruebas (`pytest`)
 
 - `tests/test_data.py`: 7 pruebas. Series y rangos de edad, semana Dom/Lun, tabla semanal con ceros y totales, ingresos, `pricing_stats`, validación de columnas e integración con el CSV real (se salta si no hay CSV).
-- `tests/test_forecasting.py`: 25 pruebas.
+- `tests/test_forecasting.py`: 23 pruebas.
   - split cronológico y escalador solo con train (no-fuga);
   - formas y contenido de las ventanas, y que ninguna ventana de train toque val/test;
   - MAE y RMSE a mano y contra sklearn, líneas base a mano (ingenua, media móvil, media histórica) y `choose_k`;
   - salida del modelo, checkpoint que se recarga con predicciones idénticas y desescalado por serie;
   - alineación de **todos** los modelos en las mismas filas de prueba y pronóstico de la próxima semana;
   - sesgo de residuos y bootstrap pareado con datos sintéticos de resultado conocido;
-  - checkpoint real + pantalla headless (se salta si no hay CSV o checkpoint).
-- **Ninguna prueba entrena.** Suite completa: 32 pruebas en ~5 s, sobre todo por la importación de torch. Sin el CSV ni el checkpoint: 30 pasan y 2 se saltan.
+  - checkpoint real + pantalla headless: LSTM desde la semana 5 igual a la tabla, flechas, clic en nombre, leyenda, arrastre con encaje, hover, selector Esta serie/Global, ayuda ⓘ y exportación de los dos formatos a una carpeta temporal (se salta si no hay CSV o checkpoint).
+  - formato de exportación: el CSV para Excel tiene BOM UTF-8, separador `;`, coma decimal y los mismos valores redondeados a 2 decimales.
+- `tests/test_menu.py`: 1 prueba. Las 4 tareas tienen `run`, ninguna tarjeta se sale de la ventana ni se superpone.
+- **Ninguna prueba entrena.** Suite completa: 34 pruebas en ~5 s. Sin el CSV ni el checkpoint: 32 pasan y 2 se saltan.
 
 ## 12. Auditoría final de la Tarea B (enunciado + rúbrica + checklist §11 del plan)
 
@@ -402,8 +438,8 @@ Para inventario, con un MAE de ~3.4 unidades sobre niveles de 6 a 10, conviene p
 | Línea base de media móvil | Bonus · rúbrica "baseline comparison" | ✅ | k=8 elegido con validación; además media histórica e ingenua; mismas 48 filas; bootstrap pareado |
 | Exportar predicciones a CSV | Bonus · rúbrica "CSV export" | ✅ | `predictions.csv` (evaluate.py y botón de la pantalla) |
 | División cronológica sin fuga | Checklist §11 | ✅ | §4 y pruebas de no-fuga |
-| Pruebas pasan; evidencias guardadas | Checklist §11 | ✅ | 32 pruebas; gráficas y tablas en `outputs/task_b/` |
-| Python 3.11 | Plan §7 (sugerencia) | ⚠️ | verificado en 3.13.3; falta 3.11 |
+| Pruebas pasan; evidencias guardadas | Checklist §11 | ✅ | 34 pruebas; gráficas y tablas en `outputs/task_b/` (ver su README) |
+| Versión de Python | Plan §7 (sugerencia) | ✅ | Python 3.13.3, la versión documentada |
 
 ## 13. Revisión como experto en ML: hallazgos y correcciones
 

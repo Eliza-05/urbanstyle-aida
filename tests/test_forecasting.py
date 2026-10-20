@@ -253,13 +253,13 @@ def test_forecast_next_week_is_the_week_after_the_data():
 
 @pytest.mark.skipif(not (config.SALES_CSV.exists() and (config.MODELS_DIR / "lstm_forecast.pt").exists()),
                     reason="requiere el CSV y el checkpoint entrenado")
-def test_saved_checkpoint_and_screen_headless(monkeypatch):
+def test_saved_checkpoint_and_screen_headless(monkeypatch, tmp_path):
     monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
     monkeypatch.setenv("SDL_AUDIODRIVER", "dummy")
     import pygame
+    from task_b_forecasting import evaluate
     from task_b_forecasting import screen as screen_b
-    from task_b_forecasting.evaluate import load_results
-    results = load_results()
+    results = screen_b.load_cached()
     ckpt = results["ckpt"]
     assert ckpt["series_names"] == ["Clothing-Male", "Clothing-Female", "Beauty-Male",
                                     "Beauty-Female", "Electronics-Male", "Electronics-Female"]
@@ -268,10 +268,55 @@ def test_saved_checkpoint_and_screen_headless(monkeypatch):
     pygame.init()
     surface = pygame.display.set_mode((config.WINDOW_WIDTH, config.WINDOW_HEIGHT))
     view = screen_b.ForecastScreen(results)
-    view.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RIGHT))
+    event = lambda kind, **kw: view.handle_event(pygame.event.Event(kind, **kw))
+    view.draw(surface)  # el primer dibujo registra las zonas clicables
+
+    # La LSTM se dibuja desde la semana 5 (necesita 4 previas), con los mismos valores que la tabla.
+    lstm = results["view"]["lstm"][:, 0]
+    assert np.isnan(lstm[:4]).all() and np.isfinite(lstm[4:]).all()
+    table = results["predictions"].query("series == 'Clothing-Male'")["lstm"].to_numpy()
+    np.testing.assert_allclose(lstm[-len(table):], table, rtol=1e-5)
+
+    event(pygame.KEYDOWN, key=pygame.K_RIGHT)
     assert view.series_name == "Clothing-Female"
+    event(pygame.MOUSEBUTTONDOWN, button=1, pos=view.name_rects[3].center)  # clic en el nombre
+    assert view.series_name == "Beauty-Female"
+    event(pygame.MOUSEBUTTONDOWN, button=1, pos=view.legend_rects["actual"].center)  # leyenda
+    assert view.visible["actual"] is False
+
+    # Arrastre: el control sigue al mouse y al soltar encaja en la serie más cercana.
+    y = view.slider.rect.centery
+    event(pygame.MOUSEBUTTONDOWN, button=1, pos=(view.slider.x_of(0), y))
+    event(pygame.MOUSEMOTION, pos=(view.slider.x_of(1.4), y), rel=(1, 0), buttons=(1, 0, 0))
+    assert view.slider.value == pytest.approx(1.4, abs=0.02)
+    event(pygame.MOUSEBUTTONUP, button=1, pos=(view.slider.x_of(1.4), y))
+    assert view.series_name == "Clothing-Female"
+    assert view.knob_target == 1
+
+    event(pygame.MOUSEMOTION, pos=(int(view.x_center(46)), view.plot.centery), rel=(0, 0), buttons=(0, 0, 0))
+    assert view.hover_week() == 46
+    view.update(1 / 60)
+    view.draw(surface)  # tooltip incluido
+
+    # Selector segmentado de la tabla y ícono ⓘ con su ayuda emergente.
+    event(pygame.MOUSEBUTTONDOWN, button=1, pos=view.segment_rects["global"].center)
+    assert view.scope == "global"
+    event(pygame.MOUSEBUTTONDOWN, button=1, pos=view.segment_rects["series"].center)
+    assert view.scope == "series"
+    event(pygame.MOUSEMOTION, pos=view.info_rect.center, rel=(0, 0), buttons=(0, 0, 0))
     view.draw(surface)
-    view.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
+    assert "semana 5" in view.info_paragraphs()[0]
+
+    # El botón exporta los dos formatos (a una carpeta temporal: no se tocan los archivos reales).
+    real_export_all = evaluate.export_all
+    monkeypatch.setattr(evaluate, "export_all", lambda res: real_export_all(res, tmp_path))
+    event(pygame.MOUSEBUTTONDOWN, button=1, pos=view.export_button.rect.center)
+    assert (tmp_path / "predictions.csv").exists()
+    assert (tmp_path / "predictions_excel.csv").exists()
+    assert "predictions.csv" in view.toast.message
+    assert "predictions_excel.csv" in view.toast.message
+
+    event(pygame.KEYDOWN, key=pygame.K_ESCAPE)
     assert view.done
     pygame.quit()
 
@@ -301,3 +346,22 @@ def test_paired_bootstrap_intervals():
     assert boot.loc["naive", "mae_hi"] == pytest.approx(2.0)
     assert boot.loc["naive", "dmae_lo"] == pytest.approx(2.0)  # 2 peor que la LSTM perfecta en todo remuestreo
     assert set(boot.index) == set(MODELS)
+
+
+def test_export_formats_standard_and_excel(tmp_path):
+    """El CSV estándar (coma, punto decimal) y el de Excel (";", coma decimal, UTF-8 con BOM) traen lo mismo."""
+    from task_b_forecasting.evaluate import export_all
+    data = fake_data()
+    ckpt = fake_ckpt(data, k=3)
+    results = {"predictions": build_predictions(untrained_models(), ckpt, data),
+               "next_week": forecast_next_week(untrained_models(), ckpt, data)}
+    standard, excel = export_all(results, tmp_path)
+    raw = excel.read_bytes()
+    assert raw.startswith(b"\xef\xbb\xbf")  # BOM: Excel reconoce UTF-8 (tildes)
+    header = raw.decode("utf-8-sig").splitlines()[0]
+    assert header.split(";") == list(pd.read_csv(standard).columns)
+    from task_b_forecasting.evaluate import predictions_table
+    full = predictions_table(results)  # precisión completa (el estándar ya viene redondeado a 3 decimales)
+    b = pd.read_csv(excel, sep=";", decimal=",", encoding="utf-8-sig")
+    np.testing.assert_allclose(b["lstm"], full["lstm"].round(2), atol=1e-9)
+    assert "," in raw.decode("utf-8-sig").splitlines()[1]  # coma decimal en los números

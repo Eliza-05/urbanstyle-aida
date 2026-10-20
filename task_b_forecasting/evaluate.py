@@ -1,8 +1,9 @@
 """Tarea B (Elizabeth): evalúa el checkpoint contra las líneas base, pronostica la próxima semana y exporta CSV.
 
 Uso: python -m task_b_forecasting.evaluate [--seeds 5]
-Salidas en outputs/task_b/: predictions.csv, metrics.csv, next_week.csv, forecast_test.png,
-metrics_comparison.png, residuals.csv, bootstrap.csv y (con --seeds) seed_results.csv.
+Salidas en outputs/task_b/: export/ (predictions.csv, next_week.csv), metrics/ (metrics.csv,
+bootstrap.csv, residuals.csv, metrics_comparison.png), figures/forecast_test.png y, con --seeds,
+training/seed_results.csv.
 """
 import argparse
 
@@ -23,7 +24,18 @@ from task_b_forecasting.baselines import (
 )
 from task_b_forecasting.model import load_checkpoint
 from task_b_forecasting.prepare import scaler_from_minmax
-from task_b_forecasting.train import HPARAMS, OUT_DIR, load_data, predict_units, train_per_series
+from task_b_forecasting.paths import (
+    BOOTSTRAP_CSV,
+    EXPORT_DIR,
+    FIGURES_DIR,
+    METRICS_CSV,
+    METRICS_DIR,
+    NEXT_WEEK_CSV,
+    PREDICTIONS_CSV,
+    PREDICTIONS_EXCEL_CSV,
+    TRAINING_DIR,
+)
+from task_b_forecasting.train import HPARAMS, load_data, predict_units, train_per_series
 
 MODELS = ("lstm", "moving_average", "hist_mean_train", "hist_mean_trainval", "naive")
 LABELS = {"lstm": "LSTM", "moving_average": "Media móvil", "hist_mean_train": "Media histórica (train)",
@@ -173,6 +185,7 @@ def load_results():
     pred = build_predictions(models, ckpt, data)
     return {
         "ckpt": ckpt,
+        "models": models,
         "weekly": data.weekly,
         "predictions": pred,
         "metrics": metrics_table(pred),
@@ -180,13 +193,32 @@ def load_results():
     }
 
 
-def export_predictions(results, path=OUT_DIR / "predictions.csv"):
-    """Bonus: exporta las predicciones (semanas evaluadas + próxima semana) a CSV."""
+def predictions_table(results) -> pd.DataFrame:
+    """Semanas evaluadas + próxima semana (sin valor real) en una sola tabla."""
     nxt = results["next_week"].assign(part="next_week", actual=np.nan)
-    table = pd.concat([results["predictions"], nxt[results["predictions"].columns]], ignore_index=True)
+    return pd.concat([results["predictions"], nxt[results["predictions"].columns]], ignore_index=True)
+
+
+def export_predictions(results, path=PREDICTIONS_CSV):
+    """Bonus: exporta las predicciones a CSV estándar (coma separadora, punto decimal: pandas, reproducible)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    table.round(3).to_csv(path, index=False)
+    predictions_table(results).round(3).to_csv(path, index=False)
     return path
+
+
+def export_predictions_excel(results, path=PREDICTIONS_EXCEL_CSV):
+    """Misma tabla para Excel en español: separador ";", coma decimal, 2 decimales y UTF-8 con BOM (tildes)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    predictions_table(results).round(2).to_csv(path, index=False, sep=";", decimal=",", encoding="utf-8-sig")
+    return path
+
+
+def export_all(results, folder=None) -> list:
+    """Lo que hace el botón "Exportar CSV": los dos formatos. Devuelve las rutas generadas."""
+    if folder is None:
+        return [export_predictions(results), export_predictions_excel(results)]
+    return [export_predictions(results, folder / PREDICTIONS_CSV.name),
+            export_predictions_excel(results, folder / PREDICTIONS_EXCEL_CSV.name)]
 
 
 def seed_study(seeds) -> pd.DataFrame:
@@ -251,18 +283,19 @@ def main() -> None:
     parser.add_argument("--seeds", type=int, default=0, help="reentrenar con N semillas para medir variabilidad")
     args = parser.parse_args()
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    for folder in (EXPORT_DIR, METRICS_DIR, FIGURES_DIR, TRAINING_DIR):
+        folder.mkdir(parents=True, exist_ok=True)
     results = load_results()
     metrics = results["metrics"]
-    metrics.round(3).to_csv(OUT_DIR / "metrics.csv", index=False)
-    results["next_week"].round(2).to_csv(OUT_DIR / "next_week.csv", index=False)
-    export_predictions(results)
-    plot_forecasts(results, OUT_DIR / "forecast_test.png")
-    plot_metrics(metrics, OUT_DIR / "metrics_comparison.png")
+    metrics.round(3).to_csv(METRICS_CSV, index=False)
+    results["next_week"].round(2).to_csv(NEXT_WEEK_CSV, index=False)
+    export_all(results)
+    plot_forecasts(results, FIGURES_DIR / "forecast_test.png")
+    plot_metrics(metrics, METRICS_DIR / "metrics_comparison.png")
     bias = residual_bias(results["predictions"])
-    bias.round(3).to_csv(OUT_DIR / "residuals.csv", index=False)
+    bias.round(3).to_csv(METRICS_DIR / "residuals.csv", index=False)
     boot = paired_bootstrap(results["predictions"])
-    boot.round(3).to_csv(OUT_DIR / "bootstrap.csv", index=False)
+    boot.round(3).to_csv(BOOTSTRAP_CSV, index=False)
 
     pd.set_option("display.width", 200)
     print("Métricas en prueba (8 semanas × 6 series, unidades reales):")
@@ -278,7 +311,7 @@ def main() -> None:
     if args.seeds:
         seeds = [config.SEED + i for i in range(args.seeds)]
         study = seed_study(seeds)
-        study.round(4).to_csv(OUT_DIR / "seed_results.csv", index=False)
+        study.round(4).to_csv(TRAINING_DIR / "seed_results.csv", index=False)
         print(f"\nVariabilidad entre semillas {seeds} (métricas globales en prueba):")
         print(study.round(3).to_string(index=False))
         print(study.drop(columns="seed").agg(["mean", "std"]).round(3).to_string())

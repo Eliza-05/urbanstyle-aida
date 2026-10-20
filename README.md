@@ -9,7 +9,7 @@ Proyecto final del curso AIDA_M (ECI). Aplicación Pygame con un menú principal
 
 ## Instalación
 
-Requiere Python 3.11. Debe funcionar en CPU, sin GPU.
+Requiere Python 3.13 (versión con la que se verificó el proyecto). Debe funcionar en CPU, sin GPU.
 
 ```bash
 python -m venv .venv
@@ -36,7 +36,7 @@ El dataset tiene **3 categorías originales** (Beauty, Clothing, Electronics). C
 El modelo final ya está en `models/lstm_forecast.pt`, así que no hace falta entrenar para usar la app. Para reproducir todo, ejecuta desde la raíz:
 
 ```bash
-python -m task_b_forecasting.eda                 # análisis exploratorio  -> outputs/task_b/eda_*
+python -m task_b_forecasting.eda                 # análisis exploratorio  -> outputs/task_b/eda/
 python -m task_b_forecasting.tune                # (opcional, ~4.5 min) comparación de modelos con validación
 python -m task_b_forecasting.train               # entrena las 6 LSTM (~3 s en CPU) -> models/lstm_forecast.pt
 python -m task_b_forecasting.evaluate --seeds 5  # métricas, gráficas, próxima semana y CSV -> outputs/task_b/
@@ -56,7 +56,19 @@ python main.py                                   # menú -> "Tarea B"
 | `task_b_forecasting/retrain_check.py` | backtest sin tocar prueba para decidir si reentrenar con train+val |
 | `task_b_forecasting/screen.py` | pantalla: slider de serie, gráfica real vs. predicho, métricas, próxima semana, botón Exportar CSV |
 
+Salidas organizadas en `outputs/task_b/` (`export/`, `metrics/`, `training/`, `eda/`, `figures/`); qué es cada archivo: [`outputs/task_b/README.md`](outputs/task_b/README.md).
+
 Decisiones, números y limitaciones: [`docs/notas_informe_tarea_b.md`](docs/notas_informe_tarea_b.md).
+
+## Interfaz común
+
+`common/ui.py` centraliza el aspecto de la app (modo oscuro, estilo dashboard) para que las 4 tareas se vean como una sola:
+
+- **Nitidez en Windows:** `ui.create_window((1024, 640))` hace el proceso consciente de DPI y crea la ventana en píxeles físicos (1536×960 con escala 150 %). Cada pantalla diseña en píxeles **lógicos** de la ventana base 1024×640 y los convierte con `ui.px(valor)`; los tamaños de letra se pasan en px lógicos (mínimo 14).
+- **Tema `THEME`:** paleta, colores por modelo, tamaños de letra, espaciados y radios. Fuente **Inter** (licencia SIL OFL, en `assets/fonts/` con `OFL.txt`) en 4 pesos.
+- **Funciones de dibujo:** texto cacheado con antialias (`ui.blit_text`, `ui.render_text`), tarjetas tipo vidrio con sombra (`ui.draw_card`), píldoras (`ui.pill`), líneas y círculos con antialias (`ui.aa_polyline`, `ui.aa_line`, `ui.aa_circle`) y fondo con degradado (`ui.background`). Todo lo costoso se pre-renderiza y se cachea.
+- **Componentes:** `Button` (con hover animado, opcionalmente `primary`, `subtitle` y `badge`), `Slider`, `Toast` (avisos) y `FadeIn` (aparición suave), con la misma API de siempre.
+- La variable de entorno `URBANSTYLE_SCALE` fuerza una escala (por ejemplo para capturas).
 
 ## Responsables
 
@@ -66,7 +78,7 @@ Decisiones, números y limitaciones: [`docs/notas_informe_tarea_b.md`](docs/nota
 | `task_b_forecasting/` | Elizabeth |
 | `task_c_pricing/` | Sebastián |
 | `task_d_gan/` | Elizabeth |
-| `main.py`, `common/data.py`, `common/ui.py` | Elizabeth |
+| `main.py`, `common/data.py`, `common/ui.py`, `assets/fonts/` | Elizabeth |
 | `common/config.py`, `tests/`, `models/`, `outputs/`, `report/`, `docs/` | Compartido |
 
 ## Reglas de trabajo

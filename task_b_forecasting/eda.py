@@ -1,4 +1,4 @@
-"""Tarea B (Elizabeth): análisis exploratorio de las 6 series semanales; guarda gráficas y tabla en outputs/task_b/.
+"""Tarea B (Elizabeth): análisis exploratorio de las 6 series semanales; guarda gráficas y tabla en outputs/task_b/eda/.
 
 Uso: python -m task_b_forecasting.eda
 """
@@ -9,10 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from common import config
 from common.data import SERIES_NAMES, load_sales, weekly_series
-
-OUT_DIR = config.OUTPUTS_DIR / "task_b"
+from task_b_forecasting.paths import EDA_DIR
 MAX_LAG = 4
 
 
@@ -85,18 +83,18 @@ def plot_dispersion(weekly: pd.DataFrame, stats: pd.DataFrame, path) -> None:
 
 
 def main() -> None:
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    EDA_DIR.mkdir(parents=True, exist_ok=True)
     weekly = weekly_series(load_sales(), target="units")
     stats = series_stats(weekly)
-    stats.round(3).to_csv(OUT_DIR / "eda_stats.csv", index=False)
-    plot_series(weekly, OUT_DIR / "eda_series.png")
-    plot_dispersion(weekly, stats, OUT_DIR / "eda_dispersion.png")
+    stats.round(3).to_csv(EDA_DIR / "eda_stats.csv", index=False)
+    plot_series(weekly, EDA_DIR / "eda_series.png")
+    plot_dispersion(weekly, stats, EDA_DIR / "eda_dispersion.png")
 
     band = 1.96 / np.sqrt(len(weekly))
     acf = stats[[f"acf_lag{k}" for k in range(1, MAX_LAG + 1)]].to_numpy()
     print(stats.round(2).to_string(index=False))
     print(f"\nBanda de ruido ±{band:.3f}; autocorrelaciones fuera de la banda: {(abs(acf) > band).sum()} de {acf.size}")
-    print(f"Archivos en {OUT_DIR}")
+    print(f"Archivos en {EDA_DIR}")
 
 
 if __name__ == "__main__":

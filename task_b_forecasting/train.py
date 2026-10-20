@@ -1,7 +1,7 @@
 """Tarea B (Elizabeth): entrena una LSTM pequeña por serie (6 en total) y las guarda en un checkpoint único.
 
 Uso: python -m task_b_forecasting.train
-Salidas: models/lstm_forecast.pt, outputs/task_b/loss_curve.png y outputs/task_b/loss_history.csv
+Salidas: models/lstm_forecast.pt, outputs/task_b/training/loss_curve.png y loss_history.csv
 """
 import time
 from dataclasses import dataclass
@@ -25,6 +25,7 @@ from task_b_forecasting.model import (
     predict_scaled,
     save_checkpoint,
 )
+from task_b_forecasting.paths import TRAINING_DIR
 from task_b_forecasting.prepare import (
     TEST_WEEKS,
     VAL_WEEKS,
@@ -34,7 +35,6 @@ from task_b_forecasting.prepare import (
     make_windows,
 )
 
-OUT_DIR = config.OUTPUTS_DIR / "task_b"
 TARGET = "units"
 
 # Configuración elegida con VALIDACIÓN en task_b_forecasting/tune.py (docs/notas_informe_tarea_b.md §6).
@@ -180,7 +180,7 @@ def plot_loss(histories, path) -> None:
 
 def main() -> None:
     torch.set_num_threads(1)  # modelos diminutos: un hilo es más rápido
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    TRAINING_DIR.mkdir(parents=True, exist_ok=True)
     data = load_data()
     t0 = time.time()
     models, histories = train_per_series(data, HPARAMS, seed=config.SEED)
@@ -215,8 +215,8 @@ def main() -> None:
     for name, h in zip(SERIES_NAMES, histories):
         long.append(pd.DataFrame({"series": name, "epoch": range(len(h["train_loss"])),
                                   "train_loss": h["train_loss"], "val_loss": h["val_loss"]}))
-    pd.concat(long).round(6).to_csv(OUT_DIR / "loss_history.csv", index=False)
-    plot_loss(histories, OUT_DIR / "loss_curve.png")
+    pd.concat(long).round(6).to_csv(TRAINING_DIR / "loss_history.csv", index=False)
+    plot_loss(histories, TRAINING_DIR / "loss_curve.png")
 
     # Comprobación: el checkpoint recargado reproduce exactamente las mismas predicciones.
     reloaded, _ = load_checkpoint()

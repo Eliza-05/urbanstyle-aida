@@ -1,5 +1,5 @@
 # Debe funcionar en CPU, sin GPU.
-# Rangos compatibles con Python 3.11 (sin versiones exactas).
+# Rangos compatibles con Python 3.13, la versión con la que se verificó el proyecto (sin versiones exactas).
 pygame>=2.5,<3
 numpy>=1.26,<3
 pandas>=2.1,<3
