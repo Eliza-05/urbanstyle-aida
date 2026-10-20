@@ -298,7 +298,14 @@ def test_saved_checkpoint_and_screen_headless(monkeypatch, tmp_path):
     view.update(1 / 60)
     view.draw(surface)  # tooltip incluido
 
-    # Selector segmentado de la tabla y ícono ⓘ con su ayuda emergente.
+    # Etiqueta directa de la LSTM: clic para ocultar y volver a mostrar.
+    event(pygame.MOUSEBUTTONDOWN, button=1, pos=view.legend_rects["lstm"].center)
+    assert view.visible["lstm"] is False
+    view.draw(surface)
+    event(pygame.MOUSEBUTTONDOWN, button=1, pos=view.legend_rects["lstm"].center)
+    assert view.visible["lstm"] is True
+
+    # Selector "Esta serie / Global" y ayuda "cómo leer la gráfica".
     event(pygame.MOUSEBUTTONDOWN, button=1, pos=view.segment_rects["global"].center)
     assert view.scope == "global"
     event(pygame.MOUSEBUTTONDOWN, button=1, pos=view.segment_rects["series"].center)
@@ -365,3 +372,22 @@ def test_export_formats_standard_and_excel(tmp_path):
     b = pd.read_csv(excel, sep=";", decimal=",", encoding="utf-8-sig")
     np.testing.assert_allclose(b["lstm"], full["lstm"].round(2), atol=1e-9)
     assert "," in raw.decode("utf-8-sig").splitlines()[1]  # coma decimal en los números
+
+
+def test_headline_uses_the_real_forecast():
+    from task_b_forecasting.screen import headline
+    assert headline("Electronics-Male", 8.32) == "Electronics-Male: se esperan unas 8 unidades la próxima semana"
+    assert headline("Clothing-Male", 5.16) == "Clothing-Male: se esperan unas 5 unidades la próxima semana"
+    assert headline("Beauty-Male", 0.8) == "Beauty-Male: se espera una unidad la próxima semana"
+
+
+def test_direct_labels_never_overlap():
+    from task_b_forecasting.screen import spread_labels
+    # Tres etiquetas casi en el mismo punto (como Electronics-Male: 8,3 / 8,1 / 7,8).
+    placed = spread_labels([("lstm", 100, 56), ("ma", 102, 20), ("hist", 104, 20)], gap=8, low=0, high=400)
+    spans = sorted((y - h / 2, y + h / 2) for (k, y), h in zip(placed.items(), (56, 20, 20)))
+    assert all(a[1] + 8 <= b[0] + 1e-9 for a, b in zip(spans, spans[1:]))
+    # Si se salen por abajo, el grupo sube sin encimarse y sin cruzar el límite.
+    placed = spread_labels([("a", 395, 20), ("b", 398, 20)], gap=8, low=0, high=400)
+    assert max(placed.values()) + 10 <= 400
+    assert abs(placed["a"] - placed["b"]) >= 28

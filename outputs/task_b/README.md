@@ -49,9 +49,7 @@ El botón "Exportar CSV" de la pantalla (y `python -m task_b_forecasting.evaluat
 
 ## figures/ — figuras para el informe
 - `forecast_test.png`: real vs. predicho de las 6 series, con la zona de prueba y la próxima semana.
-- `screen_task_b.png`: captura de la pantalla Pygame de la Tarea B a escala real (1536×960); `screen_task_b_75.png` es la misma al 75 %.
-- `screen_task_b_global.png`: la pantalla con el selector de la tabla en "Global (6)" (y su versión `_75`).
-- `screen_task_b_info.png`: la pantalla con la ayuda del ícono ⓘ visible (y su versión `_75`).
-- `screen_task_b_tooltip.png`: la pantalla con el tooltip de una semana de prueba.
-- `screen_task_b_antes.png`: captura de la pantalla antes del rediseño visual (para comparar).
-- `menu.png` / `menu_hover.png`: menú principal en reposo y con el mouse sobre la Tarea B (y sus versiones `_75`).
+- `screen_task_b.png`: captura de la pantalla Pygame de la Tarea B (diseño editorial) a escala real (1536×960); `screen_task_b_75.png` es la misma al 75 %.
+- `screen_task_b_hover.png`: la pantalla con el tooltip de una semana de prueba (y su `_75`).
+- `menu.png` / `menu_hover.png`: menú principal (portada) en reposo y con el mouse sobre la Tarea B (y sus `_75`).
+- `screen_task_b_antes.png` y `screen_task_b_v2_tarjetas.png`: versiones anteriores de la pantalla (primera y "dashboard de tarjetas"), para comparar.

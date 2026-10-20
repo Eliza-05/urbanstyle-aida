@@ -326,22 +326,32 @@ Para inventario, con un MAE de ~3.4 unidades sobre niveles de 6 a 10, conviene p
 
 ## 8. Pantalla Pygame (`task_b_forecasting/screen.py`)
 
-Objetivo de diseño: que en 5 segundos se lea cuánto se vendió cada semana, qué predice cada modelo, qué tan bueno es cada uno y cuánto se venderá la próxima semana. Estilo de dashboard en modo oscuro, pensado para presentarse compartiendo pantalla. La pantalla **solo carga** `models/lstm_forecast.pt` y los archivos de `outputs/task_b/`; nunca entrena ni recalcula métricas.
+**Lenguaje visual editorial** (periodismo de datos al estilo FT / The Pudding y revista de moda), en modo oscuro.
+- **Sin tarjetas:** no hay bordes ni sombras. Las secciones se separan con espacio, jerarquía tipográfica y líneas finas.
+- **Tipografía:** DM Serif Display para el titular y los números grandes; Inter para lo demás.
+- **Color:** un solo acento (bermellón `#FF5A36`) para la LSTM y lo seleccionado.
 
-- **Fila de 3 tarjetas KPI** de la serie elegida: *Próxima semana · LSTM* (valor ± MAE de validación), *Ventas última semana* (24–30 dic) y *MAE LSTM en prueba*. Los números grandes se ajustan al ancho de la tarjeta.
-- **Control del enunciado:** un **slider para elegir la serie**.
-  - El control sigue al mouse mientras se arrastra y, al soltarlo, encaja en la serie más cercana.
-  - También se puede elegir con un clic en el nombre de la serie o con las flechas ← →.
-  - No se agregó el slider de duración de entrenamiento: el enunciado pide categoría **o** duración, y ese control exigiría modelos distintos entrenados con cada duración.
-- **Gráfica:**
-  - **Barras grises** con las ventas reales de las 52 semanas.
-  - **LSTM** como línea azul, con una **banda sombreada de ± MAE de validación** de esa serie.
-  - **Media móvil** (8 semanas) como línea naranja punteada; **media histórica** (semanas 1–44) como línea verde horizontal en la zona de prueba.
-  - Zona de **prueba** sombreada y una zona aparte **"Próxima semana" (31-dic – 06-ene-2024)**, con el punto de la LSTM, su barra de error ± MAE de validación y el valor escrito.
-- **Transición:** al cambiar de serie, barras, líneas, banda y eje Y se interpolan durante 250 ms.
-- **Ícono ⓘ junto al título de la gráfica** (antes eran notas fijas al pie): al pasar el mouse explica por qué la LSTM empieza en la semana 5 y muestra la cobertura de la banda.
-  - La LSTM empieza en la semana 5 porque necesita 4 semanas previas; la media móvil empieza en la 9. La pantalla calcula esas 4 semanas extra con el **mismo** modelo guardado, sin entrenar, y coinciden con `predictions.csv` donde se solapan (prueba automática).
-  - La cobertura de la banda es el conteo real de semanas de prueba dentro de ella, por serie:
+La pantalla **solo carga** `models/lstm_forecast.pt` y los archivos de `outputs/task_b/`; nunca entrena ni recalcula métricas.
+
+- **Cabecera:**
+  - la etiqueta "TAREA B · PRONÓSTICO DE DEMANDA";
+  - un **titular con la conclusión de la serie**, generado con el pronóstico real de la LSTM (por ejemplo "Electronics-Male: se esperan unas 8 unidades la próxima semana"; el número es el pronóstico de la LSTM redondeado, y el tamaño se ajusta para que quepa en una línea);
+  - la línea de contexto "3 categorías originales × género = 6 series · unidades por semana, 2023";
+  - dos datos pequeños: ventas de la última semana (24–30 dic) y MAE de la LSTM en prueba.
+- **Gráfica protagonista:**
+  - barras de ventas reales finas y tenues;
+  - la LSTM como línea de acento de 3 px con una banda ± MAE de validación muy sutil;
+  - media móvil (arena, discontinua) y media histórica (salvia, fina) en tonos apagados;
+  - eje Y a la derecha, cuadrícula mínima y sin marco.
+- **Etiquetas directas:** en lugar de leyenda, cada línea termina en su punto de la próxima semana con una etiqueta en su color. La de la LSTM lleva el valor grande en serif, "± MAE" y la semana. Un algoritmo simple las separa para que no se encimen, con línea guía si se desplazan. **Clic en una etiqueta** (o en "Ventas reales") la muestra u oculta; una etiqueta oculta aparece tachada.
+- **Anotaciones en la propia gráfica:** una llave fina con "prueba · 8 semanas" sobre el único fondo sutil (la zona de prueba) y una línea vertical en la próxima semana.
+- **Tooltip discreto:** fondo sólido simple con filete fino, sin sombra, y línea guía vertical. Sobre la próxima semana muestra la LSTM ± MAE, la media móvil y la media histórica.
+- **"Cómo leer la gráfica"** (enlace con ⓘ) explica en una ayuda emergente:
+  - por qué la LSTM empieza en la semana 5 (necesita 4 semanas previas; la media móvil, 8);
+  - la cobertura de la banda;
+  - que las etiquetas se pueden pulsar.
+
+  La cobertura real de la banda (semanas de prueba dentro de ± MAE de validación) por serie:
 
   | Serie | Dentro de la banda (de 8 semanas de prueba) |
   |---|---|
@@ -353,29 +363,26 @@ Objetivo de diseño: que en 5 segundos se lea cuánto se vendió cada semana, qu
   | Electronics-Female | 5 |
   | **Las 6 series** | **28 de 48 (58 %)** |
 
-  Por eso **no** se usa la frase fija "la mayoría de semanas caen dentro de la banda": es cierta en el total y en 4 series, pero no en Clothing-Female (2/8) ni en Clothing-Male (4/8, justo la mitad). Que ~58 % caiga dentro de ± MAE es lo esperable: el MAE es el error *promedio*, no un intervalo de confianza.
-- **Leyenda interactiva:** un clic en cada elemento lo muestra u oculta (un elemento oculto aparece tachado). La pista "Clic para mostrar u ocultar" aparece solo al pasar el mouse, y el cursor cambia a mano sobre todo lo que se puede pulsar.
-- **Tooltip:** al pasar el mouse por una semana se ven la fecha, el valor real, LSTM, media móvil, media histórica y el tramo (entrenamiento, validación o prueba), con una línea vertical guía. Sobre la zona de próxima semana muestra el pronóstico.
-- **Panel derecho:**
-  - **Una sola tabla MAE/RMSE en prueba** con un selector segmentado **"Esta serie | Global (6)"** (por defecto, esta serie). El **mejor valor de cada columna** va resaltado en una píldora, la fila *Ingenua* va en tono más tenue (es la referencia mínima) y cada modelo lleva el mismo color que en la gráfica.
-  - **Nota de significancia** en una tarjeta de información, redactada a partir de `outputs/task_b/metrics/bootstrap.csv`: "LSTM, media móvil y media histórica: sin diferencia significativa (bootstrap 95 %)"
-  - La próxima semana ya no se repite en el panel: está en el KPI y en la zona "Próxima" de la gráfica, cuyo tooltip muestra también la media móvil y la media histórica.
-- **Botones:**
-  - **Exportar CSV** (en el encabezado) regenera `predictions.csv` y `predictions_excel.csv` en `outputs/task_b/export/` y muestra el aviso temporal "Exportado: predictions.csv y predictions_excel.csv en outputs/task_b/export/".
-  - **← Menú (Esc)** vuelve al menú.
-  - Texto fijo: "3 categorías originales × género = 6 series".
-- **Tema visual único** (`common/ui.py`, clase `THEME`): fondo #0B0F19 con resplandor violeta, marca violeta #7C5CFF → fucsia #D946EF, tarjetas tipo vidrio con sombra difusa y esquinas de 16 px. Colores por modelo: LSTM #22D3EE, media móvil #F59E0B, media histórica #34D399, ingenua #94A3B8. Fuente **Inter** (SIL OFL, en `assets/fonts/` con `OFL.txt`) en regular, medium, semibold y bold. Textos de al menos 14 px lógicos. El menú usa el mismo tema, y las tareas A, C y D pueden reutilizarlo.
-- **Nitidez en Windows:** el proceso es consciente de DPI y la ventana se crea en píxeles físicos (escala 1,5 → 1536×960 en la máquina de desarrollo). Fuentes, grosores, radios y márgenes se escalan con `ui.px()`. Texto, líneas y círculos se dibujan con antialias.
-- **Microinteracciones:** hover con brillo y elevación (180 ms), aparición suave al entrar a una pantalla, halo en el control del slider al arrastrarlo, transición de 250 ms al cambiar de serie.
-- **Rendimiento** (a 1536×960, headless; presupuesto a 60 FPS: 16,6 ms):
-  - el fondo, las sombras, los degradados y las tarjetas se pre-renderizan una vez;
-  - KPI, panel y gráfica se redibujan en un búfer solo cuando cambia su estado;
-  - tiempos medidos: ~1,4 ms por cuadro en reposo, ~5 ms durante la transición de serie y ~8 ms con el mouse recorriendo semanas (tooltip).
-- **Verificación headless** (`SDL_VIDEODRIVER=dummy`):
-  - **Capturas** a escala 1,0 y 1,5 revisadas a ojo: estado inicial, tooltip, leyenda con elementos ocultos, arrastre, transición a mitad de animación y aviso de exportación. Una comprobación automática recorre las 6 series y mide que ningún texto quede a menos de 8 px lógicos del borde de su tarjeta.
-  - **Flujo completo** desde `main.py`: menú → Tarea B → arrastre del slider → leyenda → hover → exportar → ESC → salir, sin errores.
-  - **CSV exportado** idéntico al bit al anterior.
-  - **Capturas guardadas** en `outputs/task_b/figures/`, a escala real (1536×960) y al 75 %: `screen_task_b.png`, `screen_task_b_global.png` (selector en Global), `screen_task_b_info.png` (ayuda ⓘ visible), `menu.png`, `menu_hover.png` (y sus `_75`), más `screen_task_b_tooltip.png` y `screen_task_b_antes.png`.
+  Por eso no se usa la frase "la mayoría de semanas caen dentro de la banda": es cierta en el total, pero no en Clothing-Female ni en Clothing-Male. Que ~58 % caiga dentro de ± MAE es lo esperable, porque el MAE es el error *promedio*, no un intervalo de confianza.
+- **Marcador tipográfico** (columna derecha, sin caja):
+  - "ERROR EN PRUEBA" y un selector de dos palabras, "Esta serie / Global", con subrayado de acento en la activa;
+  - los 4 modelos con su muestra de línea, MAE y RMSE en cifras alineadas, separados por líneas finas. El mejor de cada columna va subrayado con el acento y la Ingenua en tono tenue (es la referencia mínima);
+  - debajo, una frase en serif cursiva redactada desde `outputs/task_b/metrics/bootstrap.csv`: "LSTM, media móvil y media histórica: sin diferencia significativa (bootstrap 95 %)."
+- **Mini-gráficas como selector:** en la franja inferior, bajo el rótulo "PRONÓSTICO PRÓXIMA SEMANA (LSTM)", las 6 series como sparklines de las 52 semanas (misma escala, para comparar niveles), cada una con su nombre, su punto de la próxima semana y el pronóstico. La activa va en acento y las demás atenuadas; **clic en una para elegirla**.
+- **Slider (control que pide el enunciado):** debajo de las mini-gráficas va el **slider** fino, con sus 6 marcas alineadas a ellas. Al soltarlo encaja en la serie más cercana, y también funcionan las flechas ← →. No se agregó el slider de duración de entrenamiento: el enunciado pide categoría **o** duración.
+- **Transición:** al cambiar de serie, barras, líneas, banda y eje Y se interpolan durante 250 ms.
+- **Botones de texto** arriba a la derecha:
+  - **Exportar CSV** (en el color de acento) genera `predictions.csv` y `predictions_excel.csv` en `outputs/task_b/export/` y lo confirma con un aviso sobrio;
+  - **← Menú** (o ESC) vuelve al menú.
+- **Nitidez y legibilidad:** el proceso es consciente de DPI y la ventana se crea a 1536×960 con escala 1,5. Texto, líneas y círculos van con antialias, ningún texto mide menos de 14 px lógicos y el gris más tenue tiene un contraste de ≥ 5,5:1.
+- **Rendimiento** (1536×960, headless; presupuesto a 60 FPS: 16,6 ms):
+  - fondos y textos se pre-renderizan;
+  - cabecera, marcador, mini-gráficas y gráfica se redibujan en un búfer solo cuando cambia su estado;
+  - tiempos: ~0,8 ms por cuadro en reposo, ~5 ms en la transición y ~6 ms con el tooltip recorriendo semanas.
+- **Verificación headless:**
+  - en las 6 series y con ambos selectores, ningún texto se sale de la ventana ni se superpone con otro (comprobación automática, a escala 1,0 y 1,5);
+  - el flujo completo desde `main.py` funciona: menú → Tarea B → arrastre del slider → etiquetas → tooltip → exportar → ESC → salir;
+  - capturas en `outputs/task_b/figures/`: `screen_task_b.png`, `screen_task_b_hover.png`, `menu.png` y `menu_hover.png` (y sus `_75`), más las versiones anteriores `screen_task_b_antes.png` (primera) y `screen_task_b_v2_tarjetas.png` (dashboard de tarjetas) para comparar.
 
 ## 9. Fundamentos teóricos (para la sustentación)
 
@@ -413,17 +420,18 @@ Objetivo de diseño: que en 5 segundos se lea cuánto se vendió cada semana, qu
 ## 11. Pruebas (`pytest`)
 
 - `tests/test_data.py`: 7 pruebas. Series y rangos de edad, semana Dom/Lun, tabla semanal con ceros y totales, ingresos, `pricing_stats`, validación de columnas e integración con el CSV real (se salta si no hay CSV).
-- `tests/test_forecasting.py`: 23 pruebas.
+- `tests/test_forecasting.py`: 25 pruebas.
   - split cronológico y escalador solo con train (no-fuga);
   - formas y contenido de las ventanas, y que ninguna ventana de train toque val/test;
   - MAE y RMSE a mano y contra sklearn, líneas base a mano (ingenua, media móvil, media histórica) y `choose_k`;
   - salida del modelo, checkpoint que se recarga con predicciones idénticas y desescalado por serie;
   - alineación de **todos** los modelos en las mismas filas de prueba y pronóstico de la próxima semana;
   - sesgo de residuos y bootstrap pareado con datos sintéticos de resultado conocido;
-  - checkpoint real + pantalla headless: LSTM desde la semana 5 igual a la tabla, flechas, clic en nombre, leyenda, arrastre con encaje, hover, selector Esta serie/Global, ayuda ⓘ y exportación de los dos formatos a una carpeta temporal (se salta si no hay CSV o checkpoint).
+  - checkpoint real + pantalla headless: LSTM desde la semana 5 igual a la tabla, flechas, clic en nombre, leyenda, arrastre con encaje, hover, etiqueta directa de la LSTM (ocultar/mostrar), selector Esta serie/Global, ayuda "cómo leer la gráfica" y exportación de los dos formatos a una carpeta temporal (se salta si no hay CSV o checkpoint).
   - formato de exportación: el CSV para Excel tiene BOM UTF-8, separador `;`, coma decimal y los mismos valores redondeados a 2 decimales.
-- `tests/test_menu.py`: 1 prueba. Las 4 tareas tienen `run`, ninguna tarjeta se sale de la ventana ni se superpone.
-- **Ninguna prueba entrena.** Suite completa: 34 pruebas en ~5 s. Sin el CSV ni el checkpoint: 32 pasan y 2 se saltan.
+- `tests/test_menu.py`: 1 prueba. Las 4 tareas tienen `run`; ninguna fila se sale de la ventana ni se superpone; "en desarrollo" solo en A, C y D.
+- **Ninguna prueba entrena.** Suite completa: 36 pruebas en ~6 s. Sin el CSV ni el checkpoint: 34 pasan y 2 se saltan.
+- Pantalla: el titular se genera con el pronóstico real, y las etiquetas directas nunca se enciman (`spread_labels`).
 
 ## 12. Auditoría final de la Tarea B (enunciado + rúbrica + checklist §11 del plan)
 
@@ -438,7 +446,7 @@ Objetivo de diseño: que en 5 segundos se lea cuánto se vendió cada semana, qu
 | Línea base de media móvil | Bonus · rúbrica "baseline comparison" | ✅ | k=8 elegido con validación; además media histórica e ingenua; mismas 48 filas; bootstrap pareado |
 | Exportar predicciones a CSV | Bonus · rúbrica "CSV export" | ✅ | `predictions.csv` (evaluate.py y botón de la pantalla) |
 | División cronológica sin fuga | Checklist §11 | ✅ | §4 y pruebas de no-fuga |
-| Pruebas pasan; evidencias guardadas | Checklist §11 | ✅ | 34 pruebas; gráficas y tablas en `outputs/task_b/` (ver su README) |
+| Pruebas pasan; evidencias guardadas | Checklist §11 | ✅ | 36 pruebas; gráficas y tablas en `outputs/task_b/` (ver su README) |
 | Versión de Python | Plan §7 (sugerencia) | ✅ | Python 3.13.3, la versión documentada |
 
 ## 13. Revisión como experto en ML: hallazgos y correcciones

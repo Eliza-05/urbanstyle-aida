@@ -1,20 +1,27 @@
 """Tema visual, escala DPI y componentes Pygame compartidos por todas las pantallas (responsable: Elizabeth).
 
+Lenguaje visual de UrbanStyle: EDITORIAL (periodismo de datos + revista de moda), modo oscuro.
+  * Sin tarjetas con borde ni sombra: las secciones se separan con espacio, jerarquía tipográfica y
+    líneas finas (`ui.hairline`). La gráfica es la protagonista.
+  * Dos familias: DM Serif Display (`weight="serif"`) para titulares y números grandes; Inter para lo demás.
+  * Un solo acento de marca (`THEME.accent`); el resto en blancos rotos y grises cálidos.
+
 Reglas para cualquier pantalla (A, B, C, D y menú):
-  * Diseña en píxeles LÓGICOS (ventana base de 1024×640) y convierte con `ui.px(valor)`: así la app se ve
-    nítida en Windows con escala 150 % (la ventana se crea en píxeles físicos con `ui.create_window`).
-  * Toma colores y tamaños SIEMPRE de `THEME`; los tamaños de letra se pasan en px lógicos.
-  * Texto: `ui.blit_text` / `ui.render_text` (Inter con antialias, cacheado). Tarjetas: `ui.draw_card`.
-    Líneas y círculos con antialias: `ui.aa_polyline`, `ui.aa_line`, `ui.aa_circle`.
-  * Lo costoso (fondo, sombras, degradados, tarjetas) se pre-renderiza y se cachea automáticamente.
+  * Diseña en píxeles LÓGICOS (ventana base 1024×640) y convierte con `ui.px(valor)`: la ventana se crea
+    en píxeles físicos con `ui.create_window`, así se ve nítida en Windows al 150 %.
+  * Colores y tamaños SIEMPRE desde `THEME`; tamaños de letra en px lógicos (mínimo 14).
+  * Texto: `ui.blit_text(..., weight=...)` (cacheado, con antialias); mayúsculas espaciadas: `ui.blit_eyebrow`.
+  * Líneas y círculos con antialias: `ui.aa_polyline`, `ui.aa_line`, `ui.aa_circle`, `ui.dashed_polyline`.
+  * Lo costoso (fondos, degradados, textos) se pre-renderiza y se cachea automáticamente.
 
 Ejemplo:
     screen = ui.create_window((1024, 640), "UrbanStyle")        # en main.py, una sola vez
-    ui.draw_card(screen, pygame.Rect(ui.px(16), ui.px(16), ui.px(300), ui.px(120)))
-    ui.blit_text(screen, "Hola", (ui.px(32), ui.px(32)), THEME.size_heading, weight="semibold")
-    boton = ui.Button(rect, "Entrenar", primary=True)              # misma API de siempre
+    ui.blit_eyebrow(screen, "TAREA A · RUTAS", (ui.px(32), ui.px(22)))
+    ui.blit_text(screen, "Titular", (ui.px(32), ui.px(44)), THEME.size_headline, weight="serif")
+    ui.hairline(screen, ui.px(32), ui.px(990), ui.px(100))
+    enlace = ui.Button(rect, "Exportar CSV", primary=True)        # botón de texto (misma API de siempre)
 
-Fuente: Inter (SIL Open Font License 1.1), en assets/fonts/ junto con OFL.txt.
+Fuentes (SIL Open Font License 1.1, en assets/fonts/ con su licencia): Inter y DM Serif Display.
 """
 import os
 import sys
@@ -27,7 +34,8 @@ from common import config
 
 FONT_DIR = config.ROOT / "assets" / "fonts"
 FONT_FILES = {"regular": "Inter-Regular.ttf", "medium": "Inter-Medium.ttf",
-              "semibold": "Inter-SemiBold.ttf", "bold": "Inter-Bold.ttf"}
+              "semibold": "Inter-SemiBold.ttf", "bold": "Inter-Bold.ttf",
+              "serif": "DMSerifDisplay-Regular.ttf", "serif_italic": "DMSerifDisplay-Italic.ttf"}
 
 
 def _hex(code: str) -> tuple:
@@ -35,56 +43,62 @@ def _hex(code: str) -> tuple:
 
 
 class THEME:
-    """Tema único de UrbanStyle (modo oscuro, estilo dashboard). Se usa como `ui.THEME.accent`."""
+    """Tema único de UrbanStyle (editorial, modo oscuro). Se usa como `ui.THEME.accent`."""
 
     scale = 1.0  # factor DPI (1.5 en Windows al 150 %); lo fija create_window/set_scale
 
-    # Fondo y superficies (las superficies son RGBA translúcidas: efecto "vidrio" sobre el degradado)
-    bg = _hex("#0B0F19")
-    glow = _hex("#7C5CFF")               # resplandor violeta en la esquina superior derecha
-    glow_2 = _hex("#D946EF")             # resplandor fucsia, muy tenue, abajo a la izquierda
-    surface = (255, 255, 255, 13)
-    surface_hover = (255, 255, 255, 22)
-    surface_alt = (255, 255, 255, 9)     # zonas dentro de una tarjeta
-    border = (255, 255, 255, 28)
-    grid = (255, 255, 255, 16)
-    shadow = (2, 4, 12)
+    # Fondo y líneas
+    bg = _hex("#0F0E0D")                 # casi negro cálido
+    bg_raised = _hex("#1A1816")          # fondo sólido de tooltips y avisos
+    chart_bg = (255, 248, 240, 6)        # único fondo sutil permitido: la zona de la gráfica
+    hairline_color = (239, 235, 228, 38)  # líneas finas de separación (1 px, baja opacidad)
+    grid = (239, 235, 228, 20)
 
-    # Texto (contraste ≥ 5:1 sobre el fondo incluso en el gris más tenue)
-    text = _hex("#E6E8F0")
-    text_muted = _hex("#A3ACC2")
-    text_faint = _hex("#8790A8")
+    # Texto (contraste ≥ 5,5:1 sobre el fondo incluso en el gris más tenue)
+    text = _hex("#EFEBE4")               # blanco roto
+    text_muted = _hex("#B7B0A8")         # gris cálido
+    text_faint = _hex("#8F8983")         # gris cálido tenue
 
-    # Marca y estados
-    accent = _hex("#7C5CFF")             # violeta UrbanStyle: botón principal, slider, activos
-    accent_2 = _hex("#D946EF")           # fucsia: final de los degradados de marca
-    accent_text = _hex("#C4B5FD")        # texto sobre píldoras violetas
-    success = _hex("#34D399")
-    warning = _hex("#F59E0B")
-    danger = _hex("#F87171")
+    # Un solo acento de marca
+    accent = _hex("#FF5A36")             # bermellón UrbanStyle: LSTM, selección, enlaces activos
+    accent_text = _hex("#FF7A5C")        # el acento para texto pequeño (más legible)
+    accent_2 = accent                    # compatibilidad: ya no se usan degradados de marca
+    success = _hex("#7E9C89")
+    warning = _hex("#B09A74")
+    danger = _hex("#E5484D")
 
-    # Colores por modelo (iguales en gráfica, leyenda, tooltip y tabla)
+    # Colores por modelo: la LSTM con el acento; las líneas base apagadas para que no compitan
     series_colors = {
-        "actual": _hex("#64748B"),
-        "lstm": _hex("#22D3EE"),
-        "moving_average": _hex("#F59E0B"),
-        "hist_mean": _hex("#34D399"),
-        "naive": _hex("#94A3B8"),
+        "actual": _hex("#3D3936"),       # barras de ventas reales: finas y tenues
+        "lstm": accent,
+        "moving_average": _hex("#B09A74"),  # arena apagada (línea discontinua)
+        "hist_mean": _hex("#7E9C89"),       # salvia apagada (línea fina)
+        "naive": _hex("#77716B"),
     }
 
-    # Tipografía en px LÓGICOS (mínimo 14 para que se lea al compartir pantalla)
-    size_hero = 54
-    size_kpi = 30
+    # Tipografía en px LÓGICOS (mínimo 14 para leerse al compartir pantalla)
+    size_hero = 84          # portada del menú (serif)
+    size_headline = 34      # titular de pantalla (serif)
+    size_number = 30        # números grandes (serif)
     size_title = 26
     size_heading = 17
     size_body = 15
     size_label = 14
     size_caption = 14
+    tracking = 2            # espaciado entre letras de las etiquetas en mayúsculas
 
     # Espaciado y forma en px lógicos
+    margin = 32
     pad_xs, pad_sm, pad_md, pad_lg, pad_xl = 4, 8, 12, 16, 24
-    radius = 16
-    radius_sm = 10
+    radius = 6
+    radius_sm = 4
+
+    # Compatibilidad con pantallas que aún usen superficies tipo tarjeta
+    surface = (255, 255, 255, 8)
+    surface_hover = (255, 255, 255, 14)
+    surface_alt = (255, 255, 255, 6)
+    border = hairline_color
+    shadow = (0, 0, 0)
 
 
 # ---------------------------------------------------------------------------
@@ -181,7 +195,8 @@ def _clear_caches() -> None:
 
 
 def font(size: int, bold: bool = False, weight: str | None = None) -> pygame.font.Font:
-    """Inter del tamaño (px lógicos) y peso pedidos: regular, medium, semibold o bold."""
+    """Fuente del tamaño (px lógicos) y peso pedidos: regular, medium, semibold, bold (Inter),
+    serif o serif_italic (DM Serif Display)."""
     weight = weight or ("bold" if bold else "regular")
     key = (px(size), weight)
     if key not in _font_cache:
@@ -190,6 +205,13 @@ def font(size: int, bold: bool = False, weight: str | None = None) -> pygame.fon
         path = FONT_DIR / FONT_FILES[weight]
         _font_cache[key] = pygame.font.Font(str(path) if path.exists() else None, px(size))
     return _font_cache[key]
+
+
+def _to_display_format(surf: pygame.Surface) -> pygame.Surface:
+    """Convierte al formato de la ventana (si ya existe): los blits son varias veces más rápidos."""
+    if pygame.display.get_surface() is None:
+        return surf
+    return surf.convert_alpha() if surf.get_flags() & pygame.SRCALPHA else surf.convert()
 
 
 def render_text(text: str, size: int, color=THEME.text, bold: bool = False, weight: str | None = None):
@@ -208,6 +230,33 @@ def blit_text(surface, text, pos, size=THEME.size_body, color=THEME.text, bold=F
               weight=None):
     """Dibuja texto anclado en `pos` (topleft, midtop, center, midright, ...) y devuelve su Rect."""
     img = render_text(text, size, color, bold, weight)
+    rect = img.get_rect(**{anchor: pos})
+    surface.blit(img, rect)
+    return rect
+
+
+def render_tracked(text: str, size: int = THEME.size_caption, color=THEME.text_faint,
+                   tracking: float = THEME.tracking, weight: str = "semibold") -> pygame.Surface:
+    """Texto con espaciado entre letras (pygame no lo trae): para etiquetas en MAYÚSCULAS."""
+    key = ("tracked", text, size, color, tracking, weight, THEME.scale)
+    surf = _text_cache.get(key)
+    if surf is None:
+        glyphs = [font(size, weight=weight).render(ch, True, color) for ch in text]
+        gap = px(tracking)
+        width = sum(g.get_width() for g in glyphs) + gap * max(0, len(glyphs) - 1)
+        surf = pygame.Surface((max(1, width), font(size, weight=weight).get_height()), pygame.SRCALPHA)
+        x = 0
+        for g in glyphs:
+            surf.blit(g, (x, 0))
+            x += g.get_width() + gap
+        surf = _to_display_format(surf)
+        _text_cache[key] = surf
+    return surf
+
+
+def blit_eyebrow(surface, text, pos, color=THEME.text_faint, anchor="topleft", size=THEME.size_caption):
+    """Etiqueta pequeña en mayúsculas espaciadas (estilo revista). Devuelve su Rect."""
+    img = render_tracked(text.upper(), size, color)
     rect = img.get_rect(**{anchor: pos})
     surface.blit(img, rect)
     return rect
@@ -232,16 +281,17 @@ def wrap_text(text: str, size: int, width: int, bold: bool = False, weight: str 
     return _wrap_cache[key]
 
 
+def fit_size(text: str, max_size: int, min_size: int, width: int, weight: str = "serif") -> int:
+    """Mayor tamaño (px lógicos) entre min y max con el que `text` cabe en `width` px físicos."""
+    size = max_size
+    while size > min_size and font(size, weight=weight).size(text)[0] > width:
+        size -= 1
+    return size
+
+
 # ---------------------------------------------------------------------------
 # Superficies pre-renderizadas (cacheadas por tamaño)
 # ---------------------------------------------------------------------------
-
-def _to_display_format(surf: pygame.Surface) -> pygame.Surface:
-    """Convierte al formato de la ventana (si ya existe): los blits son varias veces más rápidos."""
-    if pygame.display.get_surface() is None:
-        return surf
-    return surf.convert_alpha() if surf.get_flags() & pygame.SRCALPHA else surf.convert()
-
 
 def _cached(key, build):
     if key not in _surface_cache:
@@ -250,7 +300,7 @@ def _cached(key, build):
 
 
 def rounded_surface(size, radius: int, fill, border=None, border_width: int = 1) -> pygame.Surface:
-    """Rectángulo redondeado con bordes suavizados (se dibuja a 3× y se reduce). Colores RGBA."""
+    """Rectángulo (redondeado o no) con bordes suavizados (se dibuja a 3× y se reduce). Colores RGBA."""
     w, h = int(size[0]), int(size[1])
 
     def build():
@@ -263,29 +313,6 @@ def rounded_surface(size, radius: int, fill, border=None, border_width: int = 1)
         return pygame.transform.smoothscale(big, (w, h))
 
     return _cached(("round", w, h, radius, tuple(fill), tuple(border) if border else None, border_width), build)
-
-
-def _blur(surface: pygame.Surface, radius: int) -> pygame.Surface:
-    """Desenfoque barato: reducir y volver a ampliar con suavizado (dos pasadas)."""
-    w, h = surface.get_size()
-    factor = max(2, radius // 2)
-    small = (max(1, w // factor), max(1, h // factor))
-    for _ in range(2):
-        surface = pygame.transform.smoothscale(pygame.transform.smoothscale(surface, small), (w, h))
-    return surface
-
-
-def shadow_surface(size, radius: int, blur: int, alpha: int) -> pygame.Surface:
-    """Sombra difusa de una tarjeta; mide (w + 2·blur, h + 2·blur)."""
-    w, h = int(size[0]), int(size[1])
-
-    def build():
-        layer = pygame.Surface((w + 2 * blur, h + 2 * blur), pygame.SRCALPHA)
-        layer.fill((*THEME.shadow, 0))
-        pygame.draw.rect(layer, (*THEME.shadow, alpha), (blur, blur, w, h), border_radius=radius)
-        return _blur(layer, blur)
-
-    return _cached(("shadow", w, h, radius, blur, alpha), build)
 
 
 def gradient_surface(size, color_a, color_b, radius: int = 0, vertical: bool = False, alpha=(255, 255)):
@@ -316,51 +343,40 @@ def gradient_surface(size, color_a, color_b, radius: int = 0, vertical: bool = F
 
 
 def background(size) -> pygame.Surface:
-    """Fondo casi negro con resplandor radial violeta (arriba a la derecha) y fucsia muy tenue (abajo a la izquierda)."""
+    """Fondo casi negro cálido, liso (el diseño editorial no usa resplandores)."""
     w, h = int(size[0]), int(size[1])
 
     def build():
-        x = np.arange(w)[:, None] / w
-        y = np.arange(h)[None, :] / h
-        aspect = w / h
-        img = np.zeros((w, h, 3)) + np.array(THEME.bg)
-        for (cx, cy), color, strength, reach in (((0.95, -0.15), THEME.glow, 0.26, 0.95),
-                                                 ((0.0, 1.1), THEME.glow_2, 0.07, 0.75)):
-            d = np.sqrt(((x - cx) * aspect) ** 2 + (y - cy) ** 2) / (reach * aspect)
-            weight = np.clip(1 - d, 0, 1) ** 2 * strength
-            img = img * (1 - weight[..., None]) + np.array(color) * weight[..., None]
-        img += np.random.default_rng(0).uniform(-0.6, 0.6, img.shape)  # tramado: evita bandas visibles
-        return pygame.surfarray.make_surface(np.clip(img, 0, 255).astype(np.uint8))
+        surf = pygame.Surface((w, h))
+        surf.fill(THEME.bg)
+        return surf
 
     return _cached(("bg", w, h), build)
 
 
-def draw_card(surface, rect, radius=None, fill=THEME.surface, border=THEME.border, shadow: bool = True,
+def hairline(surface, x1: int, x2: int, y: int, color=THEME.hairline_color) -> None:
+    """Línea horizontal fina (1 px físico mínimo, baja opacidad) para separar secciones."""
+    surface.blit(rounded_surface((max(1, x2 - x1), max(1, px(1))), 0, color), (x1, y))
+
+
+def vhairline(surface, x: int, y1: int, y2: int, color=THEME.hairline_color) -> None:
+    surface.blit(rounded_surface((max(1, px(1)), max(1, y2 - y1)), 0, color), (x, y1))
+
+
+def draw_card(surface, rect, radius=None, fill=THEME.surface, border=THEME.border, shadow: bool = False,
               elevation: float = 0.0) -> None:
-    """Tarjeta tipo vidrio: sombra difusa (más grande con `elevation` 0..1), relleno translúcido y borde de 1 px."""
+    """Compatibilidad: panel translúcido plano (el lenguaje editorial evita las tarjetas; úsalo poco)."""
     rect = pygame.Rect(rect)
     radius = px(THEME.radius) if radius is None else radius
-    if shadow:
-        blur = px(14)
-        base = shadow_surface(rect.size, radius, blur, 110)
-        surface.blit(base, (rect.left - blur, rect.top - blur + px(4)))
-        if elevation > 0:
-            big_blur = px(22)
-            lifted = shadow_surface(rect.size, radius, big_blur, 150)
-            lifted.set_alpha(int(255 * elevation))
-            surface.blit(lifted, (rect.left - big_blur, rect.top - big_blur + px(10)))
-            lifted.set_alpha(255)
     surface.blit(rounded_surface(rect.size, radius, fill, border, max(1, px(1))), rect)
 
 
 def pill(surface, text, pos, color=THEME.accent, text_color=None, size=THEME.size_caption, anchor="topleft",
          weight="semibold"):
-    """Etiqueta en forma de píldora con fondo translúcido del color dado. Devuelve su Rect."""
-    img = render_text(text, size, text_color or THEME.accent_text, weight=weight)
-    rect = img.get_rect().inflate(px(20), px(8))
-    setattr(rect, anchor, pos)
-    surface.blit(rounded_surface(rect.size, rect.height // 2, (*color[:3], 46), (*color[:3], 110)), rect)
-    surface.blit(img, img.get_rect(center=rect.center))
+    """Compatibilidad: etiqueta en mayúsculas espaciadas del color dado (ya sin fondo de píldora)."""
+    img = render_tracked(text.upper(), size, text_color or color, weight=weight)
+    rect = img.get_rect(**{anchor: pos})
+    surface.blit(img, rect)
     return rect
 
 
@@ -375,7 +391,7 @@ def aa_circle(surface, color, center, radius) -> None:
 
 
 def aa_line(surface, color, p1, p2, width: int = 1) -> None:
-    """Línea suavizada de cualquier grosor (cuadrilátero con bordes antialias + extremos redondos)."""
+    """Línea suavizada de cualquier grosor (cuadrilátero con bordes antialias)."""
     if width <= 1:
         pygame.draw.aaline(surface, color, p1, p2)
         return
@@ -417,21 +433,6 @@ def dashed_polyline(surface, color, points, width: int, dash: int, gap: int | No
                 left = dash if draw else gap
 
 
-def glow_surface(radius: int, color, alpha: int = 90) -> pygame.Surface:
-    """Halo radial suave (para el control del slider o elementos activos)."""
-    def build():
-        size = radius * 2
-        y, x = np.ogrid[:size, :size]
-        d = np.sqrt((x - radius + 0.5) ** 2 + (y - radius + 0.5) ** 2) / radius
-        a = (np.clip(1 - d, 0, 1) ** 2 * alpha).astype(np.uint8)
-        surf = pygame.Surface((size, size), pygame.SRCALPHA)
-        surf.fill((*color[:3], 0))
-        pygame.surfarray.pixels_alpha(surf)[:] = a.T
-        return surf
-
-    return _cached(("glow", radius, tuple(color), alpha), build)
-
-
 # ---------------------------------------------------------------------------
 # Componentes
 # ---------------------------------------------------------------------------
@@ -452,11 +453,18 @@ class _Hover:
         return self.value
 
 
-class Button:
-    """Botón con hover animado. API: Button(rect, label, font=None), draw(surface), handle_event(event) -> bool.
+def _mix(a, b, t: float) -> tuple:
+    return tuple(int(x + (y - x) * t) for x, y in zip(a, b))
 
-    Opcionales: `subtitle` (tarjeta con segunda línea), `badge` (letra en un círculo de acento) y
-    `primary` (degradado violeta→fucsia de la marca). `rect` va en píxeles físicos (usa ui.px).
+
+class Button:
+    """Botón editorial (sin caja). API: Button(rect, label, font=None), draw(surface), handle_event(event) -> bool.
+
+    * Por defecto, enlace de texto: gris que pasa a blanco con un subrayado de acento al pasar el mouse.
+    * `primary=True`: enlace en el color de acento.
+    * Con `subtitle` (y opcional `badge`): fila de una lista tipográfica (letra en serif, nombre grande en
+      serif, descripción pequeña); al pasar el mouse se tiñe del acento y se desplaza un poco a la derecha.
+    `rect` es la zona clicable en píxeles físicos (usa ui.px).
     """
 
     def __init__(self, rect, label: str, font: pygame.font.Font | None = None, subtitle: str | None = None,
@@ -475,45 +483,35 @@ class Button:
 
     def draw(self, surface: pygame.Surface) -> None:
         h = self._hover.step(self.hovered())
-        lift = int(round(px(2) * h))
-        rect = self.draw_rect = self.rect.move(0, -lift)  # draw_rect: posición visible (con elevación)
-        if self.primary:
-            radius = px(THEME.radius_sm)
-            surface.blit(shadow_surface(rect.size, radius, px(12), 140), (rect.left - px(12), rect.top - px(8)))
-            surface.blit(gradient_surface(rect.size, THEME.accent, THEME.accent_2, radius), rect)
-            if h > 0:
-                shine = rounded_surface(rect.size, radius, (255, 255, 255, int(40 * h)))
-                surface.blit(shine, rect)
-            text_color = (255, 255, 255)
-        else:
-            card = bool(self.subtitle)
-            fill = tuple(int(a + (b - a) * h) for a, b in zip(THEME.surface, THEME.surface_hover))
-            border = (*THEME.accent, int(28 + 140 * h)) if h > 0 else THEME.border
-            draw_card(surface, rect, px(THEME.radius if card else THEME.radius_sm), fill, border,
-                      shadow=True, elevation=h)
-            text_color = THEME.text
-
-        x = rect.left + px(THEME.pad_lg)
-        if self.badge:
-            r = px(20)
-            center = (x + r, rect.centery)
-            if h > 0:
-                halo = glow_surface(int(r * 1.9), THEME.accent, int(120 * h))
-                surface.blit(halo, halo.get_rect(center=center))
-            surface.blit(gradient_surface((2 * r, 2 * r), THEME.accent, THEME.accent_2, r), (x, rect.centery - r))
-            blit_text(surface, self.badge, center, THEME.size_heading, (255, 255, 255), weight="bold", anchor="center")
-            x += 2 * r + px(THEME.pad_md + 2)
-
         if self.subtitle:
-            blit_text(surface, self.label, (x, rect.centery - px(1)), THEME.size_heading, text_color,
-                      weight="semibold", anchor="bottomleft")
-            blit_text(surface, self.subtitle, (x, rect.centery + px(4)), THEME.size_label, THEME.text_muted)
-        elif self.font is not None:  # compatibilidad: fuente propia, texto centrado
-            img = self.font.render(self.label, True, text_color)
-            surface.blit(img, img.get_rect(center=rect.center))
+            self._draw_list_row(surface, h)
+            return
+        base = THEME.accent_text if self.primary else THEME.text_muted
+        color = _mix(base, THEME.text if not self.primary else THEME.accent, h)
+        if self.font is not None:  # compatibilidad: fuente propia
+            img = self.font.render(self.label, True, color)
+            rect = img.get_rect(center=self.rect.center)
+            surface.blit(img, rect)
         else:
-            blit_text(surface, self.label, rect.center, THEME.size_body, text_color, weight="semibold",
-                      anchor="center")
+            rect = blit_text(surface, self.label, self.rect.center, THEME.size_body, color, weight="medium",
+                             anchor="center")
+        self.draw_rect = rect
+        underline = int(rect.width * (h if not self.primary else 0.35 + 0.65 * h))
+        if underline > 0:
+            pygame.draw.rect(surface, THEME.accent, (rect.left, rect.bottom + px(2), underline, max(1, px(1.5))))
+
+    def _draw_list_row(self, surface, h: float) -> None:
+        shift = int(round(px(8) * h))
+        rect = self.draw_rect = self.rect.move(shift, 0)
+        x = rect.left
+        if self.badge:
+            blit_text(surface, self.badge, (x, rect.centery), THEME.size_title + 6,
+                      _mix(THEME.text_faint, THEME.accent, h), weight="serif", anchor="midleft")
+            x += px(44)
+        size = fit_size(self.label, THEME.size_title + 4, THEME.size_heading, self.rect.right - x - px(8))
+        blit_text(surface, self.label, (x, rect.centery + px(2)), size,
+                  _mix(THEME.text, THEME.accent, h), weight="serif", anchor="bottomleft")
+        blit_text(surface, self.subtitle, (x, rect.centery + px(6)), THEME.size_label, THEME.text_faint)
 
     def handle_event(self, event: pygame.event.Event) -> bool:
         """True si se hizo clic izquierdo sobre el botón."""
@@ -525,7 +523,8 @@ class Button:
 
 
 class Slider:
-    """Slider horizontal. API: Slider(rect, min_value, max_value, value), handle_event(event) -> valor, draw(surface).
+    """Slider horizontal fino. API: Slider(rect, min_value, max_value, value), handle_event(event) -> valor,
+    draw(surface), x_of(valor).
 
     Mientras se arrastra, el control sigue al mouse (`dragging` = True); quien lo usa puede redondear el
     valor al soltar para encajar en posiciones discretas. `rect` va en píxeles físicos.
@@ -550,7 +549,7 @@ class Slider:
         return int(self.rect.left + (value - self.min_value) / span * self.rect.width)
 
     def _hit(self, pos) -> bool:
-        return self.rect.inflate(px(28), px(32)).collidepoint(pos)
+        return self.rect.inflate(px(28), px(28)).collidepoint(pos)
 
     def handle_event(self, event: pygame.event.Event) -> float:
         """Procesa clic/arrastre y devuelve el valor actual."""
@@ -564,23 +563,21 @@ class Slider:
             self._set_from_x(event.pos[0])
         return self.value
 
-    def draw(self, surface: pygame.Surface) -> None:
-        track_h = px(6)
-        track = pygame.Rect(self.rect.left, self.rect.centery - track_h // 2, self.rect.width, track_h)
-        surface.blit(rounded_surface(track.size, track_h // 2, (255, 255, 255, 26)), track)
+    def draw(self, surface: pygame.Surface, stops: int = 0) -> None:
+        """Riel de 1 px, marcas opcionales en `stops` posiciones enteras y control circular del acento."""
+        y = self.rect.centery
+        hairline(surface, self.rect.left, self.rect.right, y, (*THEME.text, 70))
+        for i in range(stops):
+            x = self.x_of(self.min_value + i * (self.max_value - self.min_value) / max(1, stops - 1))
+            vhairline(surface, x, y - px(4), y + px(5), (*THEME.text, 90))
         x = self.x_of(self.value)
-        filled = gradient_surface(track.size, THEME.accent, THEME.accent_2, track_h // 2)
-        surface.blit(filled, track.topleft, pygame.Rect(0, 0, max(0, x - track.left), track_h))
         h = self._hover.step(self.dragging or self._hit(pygame.mouse.get_pos()))
-        if h > 0:
-            halo = glow_surface(px(22), THEME.accent, int(150 * h))
-            surface.blit(halo, halo.get_rect(center=(x, self.rect.centery)))
-        aa_circle(surface, THEME.accent, (x, self.rect.centery), px(11))
-        aa_circle(surface, (255, 255, 255), (x, self.rect.centery), px(7.5))
+        aa_circle(surface, THEME.accent, (x, y), px(6 + 2 * h))
+        aa_circle(surface, THEME.bg, (x, y), px(2.5))
 
 
 class Toast:
-    """Aviso temporal (p. ej. "Archivo exportado"). show(texto), draw(surface) en cada cuadro."""
+    """Aviso temporal sobrio (fondo sólido, filete de acento). show(texto), draw(surface) en cada cuadro."""
 
     def __init__(self, duration_ms: int = 3500):
         self.duration_ms = duration_ms
@@ -596,17 +593,14 @@ class Toast:
         if not self.message or remaining <= 0:
             return
         img = render_text(self.message, THEME.size_body, THEME.text, weight="medium")
-        box = img.get_rect().inflate(px(64), px(24))
+        box = img.get_rect().inflate(px(44), px(22))
         box.midbottom = (surface.get_width() // 2, surface.get_height() - px(28))
-        layer = pygame.Surface((box.width + px(40), box.height + px(40)), pygame.SRCALPHA)
-        inner = pygame.Rect(px(20), px(16), box.width, box.height)
-        draw_card(layer, inner, px(14), (22, 27, 40, 245), (*THEME.success, 150))
-        aa_circle(layer, THEME.success, (inner.left + px(22), inner.centery), px(9))
-        blit_text(layer, "✓", (inner.left + px(22), inner.centery), THEME.size_label, THEME.bg, weight="bold",
-                  anchor="center")
-        layer.blit(img, img.get_rect(midleft=(inner.left + px(40), inner.centery)))
+        layer = pygame.Surface(box.size, pygame.SRCALPHA)
+        layer.fill((*THEME.bg_raised, 250))
+        pygame.draw.rect(layer, THEME.accent, (0, 0, max(2, px(3)), box.height))
+        layer.blit(img, img.get_rect(midleft=(px(22), box.height // 2)))
         layer.set_alpha(255 if remaining > 400 else int(255 * remaining / 400))  # se desvanece al final
-        surface.blit(layer, (box.left - px(20), box.top - px(16)))
+        surface.blit(layer, box)
 
 
 class FadeIn:

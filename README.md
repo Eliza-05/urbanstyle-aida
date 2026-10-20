@@ -62,13 +62,21 @@ Decisiones, números y limitaciones: [`docs/notas_informe_tarea_b.md`](docs/nota
 
 ## Interfaz común
 
-`common/ui.py` centraliza el aspecto de la app (modo oscuro, estilo dashboard) para que las 4 tareas se vean como una sola:
+`common/ui.py` define el lenguaje visual de toda la app: **editorial** (periodismo de datos + revista de moda), en modo oscuro. Sebastián puede reutilizarlo tal cual en A y C.
 
-- **Nitidez en Windows:** `ui.create_window((1024, 640))` hace el proceso consciente de DPI y crea la ventana en píxeles físicos (1536×960 con escala 150 %). Cada pantalla diseña en píxeles **lógicos** de la ventana base 1024×640 y los convierte con `ui.px(valor)`; los tamaños de letra se pasan en px lógicos (mínimo 14).
-- **Tema `THEME`:** paleta, colores por modelo, tamaños de letra, espaciados y radios. Fuente **Inter** (licencia SIL OFL, en `assets/fonts/` con `OFL.txt`) en 4 pesos.
-- **Funciones de dibujo:** texto cacheado con antialias (`ui.blit_text`, `ui.render_text`), tarjetas tipo vidrio con sombra (`ui.draw_card`), píldoras (`ui.pill`), líneas y círculos con antialias (`ui.aa_polyline`, `ui.aa_line`, `ui.aa_circle`) y fondo con degradado (`ui.background`). Todo lo costoso se pre-renderiza y se cachea.
-- **Componentes:** `Button` (con hover animado, opcionalmente `primary`, `subtitle` y `badge`), `Slider`, `Toast` (avisos) y `FadeIn` (aparición suave), con la misma API de siempre.
-- La variable de entorno `URBANSTYLE_SCALE` fuerza una escala (por ejemplo para capturas).
+- **Principios:** sin tarjetas con borde ni sombra. Las secciones se separan con espacio, jerarquía tipográfica y líneas finas (`ui.hairline`). La gráfica es la protagonista, y hay un solo acento de marca.
+- **Tipografía:** **DM Serif Display** (`weight="serif"`, titulares y números grandes) e **Inter** (`regular`, `medium`, `semibold`, `bold`) para el resto. Las dos tienen licencia SIL OFL y están en `assets/fonts/` con su licencia. `ui.blit_eyebrow` hace las etiquetas en mayúsculas espaciadas.
+- **Paleta (`THEME`):**
+  - fondo `#0F0E0D`; texto `#EFEBE4`, `#B7B0A8` y `#8F8983`;
+  - acento `#FF5A36`;
+  - modelos: LSTM = acento, media móvil `#B09A74`, media histórica `#7E9C89`, ingenua `#77716B`, barras de ventas `#3D3936`.
+- **Nitidez en Windows:** `ui.create_window((1024, 640))` hace el proceso consciente de DPI y crea la ventana en píxeles físicos (1536×960 con escala 150 %). Cada pantalla diseña en píxeles **lógicos** y los convierte con `ui.px(valor)`; los tamaños de letra van en px lógicos (mínimo 14). `URBANSTYLE_SCALE` fuerza una escala (útil para capturas).
+- **Dibujo:** texto cacheado con antialias (`ui.blit_text`, `ui.render_text`, `ui.fit_size` para titulares que deben caber), líneas y círculos con antialias (`ui.aa_polyline`, `ui.aa_line`, `ui.aa_circle`, `ui.dashed_polyline`). Lo costoso se pre-renderiza y se cachea.
+- **Componentes, con la API de siempre:**
+  - `Button`: enlace de texto con subrayado de acento al pasar el mouse; `primary=True` lo pone en el color de acento; con `subtitle` y `badge` es una fila de lista tipográfica.
+  - `Slider`: riel de 1 px con marcas.
+  - `Toast` (aviso sobrio) y `FadeIn` (aparición suave).
+  - `draw_card` y `pill` se mantienen solo por compatibilidad.
 
 ## Responsables
 

@@ -1,4 +1,4 @@
-"""Menú principal de UrbanStyle (Pygame): abre la pantalla de cada tarea con run(screen, clock)."""
+"""Menú principal de UrbanStyle (Pygame): portada editorial que abre cada tarea con run(screen, clock)."""
 import sys
 
 import pygame
@@ -21,46 +21,47 @@ KEYS = {pygame.K_a: 0, pygame.K_b: 1, pygame.K_c: 2, pygame.K_d: 3}  # atajos de
 
 
 def build_menu(size):
-    """Tarjetas de las 4 tareas (cuadrícula 2×2), botón Salir y la capa estática (fondo, títulos, pie).
+    """Índice de las 4 tareas (lista tipográfica), enlace Salir y la capa estática (portada y pie).
 
     `size` es el tamaño físico de la ventana; la geometría se define en px lógicos y se escala con ui.px().
     """
     w, h = size[0] / THEME.scale, size[1] / THEME.scale  # tamaño lógico
-    card_w, card_h, gap = min(400, (w - 3 * 24) / 2), 96, 18
-    x0 = (w - 2 * card_w - gap) / 2
-    y0 = 238
+    m = THEME.margin * 2
+    list_x, list_w = w * 0.52, w * 0.48 - m
+    row_h, top = 84, 168
     cards = []
     for i, (letter, name, desc, module, ready) in enumerate(TASKS):
-        rect = pygame.Rect(px(x0 + (i % 2) * (card_w + gap)), px(y0 + (i // 2) * (card_h + gap)), px(card_w), px(card_h))
-        cards.append((ui.Button(rect, name, subtitle=desc, badge=letter), module, ready))
-    quit_button = ui.Button((px((w - 180) / 2), px(y0 + 2 * (card_h + gap) + 16), px(180), px(42)), "Salir")
+        subtitle = name if ready else f"{name} · en desarrollo"
+        rect = pygame.Rect(px(list_x), px(top + i * row_h), px(list_w), px(row_h))
+        cards.append((ui.Button(rect, desc, subtitle=subtitle, badge=letter), module, ready))
+    quit_w = ui.font(THEME.size_body, weight="medium").size("Salir")[0] / THEME.scale + 12
+    quit_button = ui.Button((px(list_x), px(top + 4 * row_h + 22), px(quit_w), px(30)), "Salir")
 
     static = ui.background(size).copy()
-    cx = size[0] // 2
-    title = ui.blit_text(static, "UrbanStyle", (cx, px(118)), THEME.size_hero, weight="bold", anchor="center")
-    line = ui.gradient_surface((px(96), px(4)), THEME.accent, THEME.accent_2, px(2))
-    static.blit(line, line.get_rect(midtop=(cx, title.bottom + px(8))))
-    ui.blit_text(static, "Sistema de IA para retail de moda", (cx, title.bottom + px(36)), 19, THEME.text_muted,
-                 weight="medium", anchor="center")
-    ui.blit_text(static, "Elige una tarea  ·  clic o teclas A, B, C, D", (cx, px(y0 - 22)), THEME.size_caption,
-                 THEME.text_faint, anchor="center")
-    footer_y = size[1] - px(30)
-    half = (size[0] - px(48)) // 2  # divisor que se desvanece hacia ambos lados
-    for i, (start, end) in enumerate(((0, 110), (110, 0))):
-        piece = ui.gradient_surface((half, max(1, px(1))), THEME.accent, THEME.accent, alpha=(start, end))
-        static.blit(piece, (px(24) + i * half, footer_y - px(18)))
-    ui.blit_text(static, "Integrantes: Elizabeth Correa · Sebastián Ortega", (cx, footer_y), THEME.size_label,
-                 THEME.text_muted, anchor="center")
+    # Portada: etiqueta, nombre de la marca en serif y subtítulo.
+    ui.blit_eyebrow(static, "Proyecto final", (px(m), px(170)), THEME.accent_text)
+    title = ui.blit_text(static, "UrbanStyle", (px(m - 4), px(286)), THEME.size_hero, weight="serif",
+                         anchor="bottomleft")
+    pygame.draw.rect(static, THEME.accent, (px(m), title.bottom + px(10), px(56), max(2, px(3))))
+    ui.blit_text(static, "Sistema de IA para retail de moda", (px(m), title.bottom + px(30)), 19,
+                 THEME.text_muted, weight="medium")
+    # Índice: etiqueta y líneas finas entre filas.
+    ui.blit_eyebrow(static, "Contenido", (px(list_x), px(top - 30)))
+    for i in range(len(TASKS) + 1):
+        ui.hairline(static, px(list_x), px(list_x + list_w), px(top + i * row_h))
+    ui.blit_text(static, "Clic o teclas A, B, C, D", (px(list_x + list_w), px(top + 4 * row_h + 26)),
+                 THEME.size_caption, THEME.text_faint, anchor="topright")
+    # Pie.
+    ui.hairline(static, px(m), size[0] - px(m), size[1] - px(48))
+    ui.blit_text(static, "Elizabeth Correa · Sebastián Ortega", (px(m), size[1] - px(28)), THEME.size_label,
+                 THEME.text_faint, anchor="midleft")
     return cards, quit_button, static
 
 
 def draw_menu(screen, cards, quit_button, static) -> None:
     screen.blit(static, (0, 0))
-    for button, _, ready in cards:
+    for button, _, _ in cards:
         button.draw(screen)
-        if not ready:  # etiqueta honesta: la pantalla todavía es un marcador de posición
-            r = button.draw_rect
-            ui.pill(screen, "en desarrollo", (r.right - px(14), r.top + px(12)), anchor="topright")
     quit_button.draw(screen)
 
 
