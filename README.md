@@ -9,7 +9,7 @@ Proyecto final del curso AIDA_M (ECI). Aplicación Pygame con un menú principal
 
 ## Instalación
 
-Requiere Python 3.11. Debe funcionar en CPU, sin GPU.
+Requiere Python 3.13 (versión con la que se verificó el proyecto). Debe funcionar en CPU, sin GPU.
 
 ```bash
 python -m venv .venv
@@ -29,6 +29,55 @@ pytest           # no necesita el CSV, GPU ni entrenar nada
 - CSV de ventas: `data/raw/retail_sales_dataset.csv` (nunca se modifica; los derivados van en `data/processed/`).
 - Plan del proyecto (Markdown): `docs/`.
 
+## Tarea B — Pronóstico de demanda (LSTM)
+
+El dataset tiene **3 categorías originales** (Beauty, Clothing, Electronics). Con autorización del profesor se trabaja con **6 series = categoría × género** (p. ej. `Clothing-Female`), en unidades vendidas por semana (52 semanas completas, domingo a sábado).
+
+El modelo final ya está en `models/lstm_forecast.pt`, así que no hace falta entrenar para usar la app. Para reproducir todo, ejecuta desde la raíz:
+
+```bash
+python -m task_b_forecasting.eda                 # análisis exploratorio  -> outputs/task_b/eda/
+python -m task_b_forecasting.tune                # (opcional, ~4.5 min) comparación de modelos con validación
+python -m task_b_forecasting.train               # entrena las 6 LSTM (~3 s en CPU) -> models/lstm_forecast.pt
+python -m task_b_forecasting.evaluate --seeds 5  # métricas, gráficas, próxima semana y CSV -> outputs/task_b/
+python -m task_b_forecasting.retrain_check       # (opcional, ~15 s) backtest: ¿reentrenar con train+val?
+python main.py                                   # menú -> "Tarea B"
+```
+
+| Archivo | Qué hace |
+|---|---|
+| `common/data.py` | carga y valida el CSV, crea las series y la tabla semanal; `pricing_stats` para la Tarea C |
+| `task_b_forecasting/prepare.py` | split cronológico 36/8/8 semanas, MinMax ajustado solo con train, ventanas deslizantes |
+| `task_b_forecasting/baselines.py` | MAE, RMSE y líneas base: ingenua, media móvil (k elegido con validación) y media histórica |
+| `task_b_forecasting/model.py` | LSTM + capa lineal; guardar y cargar el checkpoint |
+| `task_b_forecasting/train.py` | entrenamiento (Adam, MSE, dropout, early stopping, semilla fija) |
+| `task_b_forecasting/tune.py` | por serie vs. compartido y elección de hiperparámetros con validación |
+| `task_b_forecasting/evaluate.py` | LSTM vs. media móvil, media histórica e ingenua en las mismas semanas de prueba; sesgo, bootstrap y `predictions.csv` |
+| `task_b_forecasting/retrain_check.py` | backtest sin tocar prueba para decidir si reentrenar con train+val |
+| `task_b_forecasting/screen.py` | pantalla: slider de serie, gráfica real vs. predicho, métricas, próxima semana, botón Exportar CSV |
+
+Salidas organizadas en `outputs/task_b/` (`export/`, `metrics/`, `training/`, `eda/`, `figures/`); qué es cada archivo: [`outputs/task_b/README.md`](outputs/task_b/README.md).
+
+Decisiones, números y limitaciones: [`docs/notas_informe_tarea_b.md`](docs/notas_informe_tarea_b.md).
+
+## Interfaz común
+
+`common/ui.py` define el lenguaje visual de toda la app: **editorial** (periodismo de datos + revista de moda), en modo oscuro. Sebastián puede reutilizarlo tal cual en A y C.
+
+- **Principios:** sin tarjetas con borde ni sombra. Las secciones se separan con espacio, jerarquía tipográfica y líneas finas (`ui.hairline`). La gráfica es la protagonista, y hay un solo acento de marca.
+- **Tipografía:** **DM Serif Display** (`weight="serif"`, titulares y números grandes) e **Inter** (`regular`, `medium`, `semibold`, `bold`) para el resto. Las dos tienen licencia SIL OFL y están en `assets/fonts/` con su licencia. `ui.blit_eyebrow` hace las etiquetas en mayúsculas espaciadas.
+- **Paleta (`THEME`):**
+  - fondo `#0F0E0D`; texto `#EFEBE4`, `#B7B0A8` y `#8F8983`;
+  - acento `#FF5A36`;
+  - modelos: LSTM = acento, media móvil `#B09A74`, media histórica `#7E9C89`, ingenua `#77716B`, barras de ventas `#3D3936`.
+- **Nitidez en Windows:** `ui.create_window((1024, 640))` hace el proceso consciente de DPI y crea la ventana en píxeles físicos (1536×960 con escala 150 %). Cada pantalla diseña en píxeles **lógicos** y los convierte con `ui.px(valor)`; los tamaños de letra van en px lógicos (mínimo 14). `URBANSTYLE_SCALE` fuerza una escala (útil para capturas).
+- **Dibujo:** texto cacheado con antialias (`ui.blit_text`, `ui.render_text`, `ui.fit_size` para titulares que deben caber), líneas y círculos con antialias (`ui.aa_polyline`, `ui.aa_line`, `ui.aa_circle`, `ui.dashed_polyline`). Lo costoso se pre-renderiza y se cachea.
+- **Componentes, con la API de siempre:**
+  - `Button`: enlace de texto con subrayado de acento al pasar el mouse; `primary=True` lo pone en el color de acento; con `subtitle` y `badge` es una fila de lista tipográfica.
+  - `Slider`: riel de 1 px con marcas.
+  - `Toast` (aviso sobrio) y `FadeIn` (aparición suave).
+  - `draw_card` y `pill` se mantienen solo por compatibilidad.
+
 ## Responsables
 
 | Carpeta | Responsable |
@@ -37,7 +86,7 @@ pytest           # no necesita el CSV, GPU ni entrenar nada
 | `task_b_forecasting/` | Elizabeth |
 | `task_c_pricing/` | Sebastián |
 | `task_d_gan/` | Elizabeth |
-| `main.py`, `common/data.py`, `common/ui.py` | Elizabeth |
+| `main.py`, `common/data.py`, `common/ui.py`, `assets/fonts/` | Elizabeth |
 | `common/config.py`, `tests/`, `models/`, `outputs/`, `report/`, `docs/` | Compartido |
 
 ## Reglas de trabajo

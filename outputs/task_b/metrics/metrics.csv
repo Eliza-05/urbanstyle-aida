@@ -1,0 +1,8 @@
+series,n,lstm_mae,lstm_rmse,moving_average_mae,moving_average_rmse,hist_mean_train_mae,hist_mean_train_rmse,hist_mean_trainval_mae,hist_mean_trainval_rmse,naive_mae,naive_rmse
+Clothing-Male,8,3.485,4.004,2.969,4.002,3.597,4.718,3.261,4.369,3.5,4.444
+Clothing-Female,8,3.95,4.228,4.062,4.368,3.875,4.362,3.875,4.323,5.875,6.452
+Beauty-Male,8,2.453,3.32,2.594,3.815,2.139,2.703,2.216,2.783,4.0,4.743
+Beauty-Female,8,2.93,3.536,2.312,2.651,2.306,2.592,2.403,2.709,3.5,3.841
+Electronics-Male,8,3.697,4.319,3.688,4.606,3.764,4.251,3.682,4.211,5.375,6.031
+Electronics-Female,8,3.892,5.08,4.422,5.837,4.194,5.609,4.0,5.398,6.5,7.194
+GLOBAL,48,3.401,4.121,3.341,4.32,3.312,4.18,3.24,4.077,4.792,5.579

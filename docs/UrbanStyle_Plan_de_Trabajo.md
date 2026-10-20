@@ -386,7 +386,7 @@ urbanstyle/
   - semillas fijas;
   - rutas relativas (nunca rutas de nuestros computadores);
   - que funcione **sin GPU**;
-  - ⚠️ Pendiente: fijar la versión de Python y de las dependencias (sugerencia: Python 3.11).
+  - ⚠️ Pendiente: fijar la versión de Python y de las dependencias (sugerencia: Python 3.13, la versión con la que se verificó el proyecto).
   - Antes de entregar, probar todo desde un clon limpio.
 
 ---
