@@ -1,0 +1,12 @@
+model,metric,seed_42,min_5,max_5,mean_5,std_5,z_42,in_range,rank_42_of_6
+dcgan,FID-CNN,47.9224,46.6956,52.4352,49.6168,2.1742,-0.7793,True,2
+dcgan,Clases cubiertas (≥ 2 %),10.0000,10.0000,10.0000,10.0000,0.0000,0.0000,True,1
+dcgan,Entropía de clases,0.9928,0.9924,0.9964,0.9942,0.0015,-0.9272,True,5
+dcgan,Clase menos generada (%),7.6700,7.5700,8.3700,8.0500,0.3340,-1.1378,True,5
+dcgan,Diversidad (L2 por pares),22.8531,22.4829,22.8784,22.6315,0.1524,1.4545,True,2
+dcgan,Reconocibles (%),39.9500,38.2100,40.4000,39.0180,0.8546,1.0905,True,2
+cgan,FID-CNN,10.4144,9.9781,12.9264,11.3180,1.1247,-0.8034,True,2
+cgan,Control global (%),90.9300,89.8500,90.7100,90.1680,0.3231,2.3581,False,1
+cgan,Diversidad dentro de clase / real,0.9769,0.9726,0.9954,0.9826,0.0113,-0.5021,True,4
+cgan,Diversidad (L2 por pares),22.1444,22.1472,22.8269,22.4685,0.3197,-1.0136,False,6
+cgan,Reconocibles (%),67.7400,65.4900,67.2200,66.5580,0.7100,1.6648,False,1

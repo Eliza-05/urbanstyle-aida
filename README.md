@@ -27,7 +27,8 @@ pytest           # no necesita el CSV, GPU ni entrenar nada
 ## Datos y documentación
 
 - CSV de ventas: `data/raw/retail_sales_dataset.csv` (nunca se modifica; los derivados van en `data/processed/`).
-- Plan del proyecto (Markdown): `docs/`.
+- Plan del proyecto (Markdown): `docs/`. Guía para empezar A y C: [`docs/guia_para_sebastian.md`](docs/guia_para_sebastian.md).
+- Estado: B y D terminadas; A y C abren como marcador "en desarrollo" (Sebastián).
 
 ## Tarea B — Pronóstico de demanda (LSTM)
 
@@ -39,7 +40,8 @@ El modelo final ya está en `models/lstm_forecast.pt`, así que no hace falta en
 python -m task_b_forecasting.eda                 # análisis exploratorio  -> outputs/task_b/eda/
 python -m task_b_forecasting.tune                # (opcional, ~4.5 min) comparación de modelos con validación
 python -m task_b_forecasting.train               # entrena las 6 LSTM (~3 s en CPU) -> models/lstm_forecast.pt
-python -m task_b_forecasting.evaluate --seeds 5  # métricas, gráficas, próxima semana y CSV -> outputs/task_b/
+python -m task_b_forecasting.evaluate            # solo evaluar el modelo guardado (sin reentrenar): métricas, gráficas, próxima semana y CSV
+python -m task_b_forecasting.evaluate --seeds 5  # lo mismo, y además reentrena con 5 semillas para medir la variabilidad
 python -m task_b_forecasting.retrain_check       # (opcional, ~15 s) backtest: ¿reentrenar con train+val?
 python main.py                                   # menú -> "Tarea B"
 ```
@@ -60,6 +62,42 @@ Salidas organizadas en `outputs/task_b/` (`export/`, `metrics/`, `training/`, `e
 
 Decisiones, números y limitaciones: [`docs/notas_informe_tarea_b.md`](docs/notas_informe_tarea_b.md).
 
+## Tarea D — Imágenes promocionales con GAN (DCGAN + cGAN)
+
+Una **DCGAN** (la arquitectura del taller W2_DCGAN) genera prendas nuevas de 28×28 a partir de ruido. Una **GAN condicional (cGAN)** (bonus) genera la prenda que se le pide (Camiseta, Pantalón, …, Botín). Con la cGAN se compone un **póster promocional** de UrbanStyle (bonus). Los datos son Fashion-MNIST, que `torchvision` descarga solo en `data/FashionMNIST/`.
+
+Los modelos finales ya están en `models/` (`gan_generator.pt`, `cgan_generator.pt` y la CNN auxiliar de evaluación `fashion_cnn.pt`), así que no hace falta entrenar para usar la app. Para reproducir todo, ejecuta desde la raíz:
+
+```bash
+python -m task_d_gan.data              # grilla de imágenes reales (descarga Fashion-MNIST la primera vez)
+python -m task_d_gan.classifier        # CNN auxiliar para evaluar (~1,5 min en CPU, 91 % en test)
+python -m task_d_gan.train             # entrena DCGAN y cGAN, 20 épocas cada una (~13 min en CPU)
+python -m task_d_gan.evaluate          # evalúa los modelos guardados, sin reentrenar: cobertura de clases, control de la cGAN, memorización, FID-CNN (~20 s)
+python -m task_d_gan.poster --seed 7   # póster promocional -> outputs/task_d/poster/
+python -m task_d_gan.train --explore 30  # (opcional, ~21 min) exploración con la que se eligieron las 20 épocas
+python -m task_d_gan.seeds               # (opcional, ~65 min) robustez: DCGAN y cGAN con 5 semillas más
+python main.py                         # menú -> "Tarea D"
+```
+
+| Archivo | Qué hace |
+|---|---|
+| `task_d_gan/data.py` | Fashion-MNIST en [-1, 1] (por la Tanh del generador), nombres de las clases en español, grillas |
+| `task_d_gan/models.py` | `Generator` y `Discriminator` del taller; `CondGenerator` y `CondDiscriminator` (cGAN); generación determinista por semilla; checkpoints |
+| `task_d_gan/train.py` | entrenamiento alterno (`detach` en el paso de D, pérdida no saturante), ruido fijo, grilla por época, GIF, curvas, D(x)/D(G(z)) y FID-CNN por época |
+| `task_d_gan/classifier.py` | CNN pequeña que solo sirve para **evaluar** las GAN (no genera nada) |
+| `task_d_gan/metrics.py` | FID-CNN, entropía de clases, diversidad por pares y vecino más cercano |
+| `task_d_gan/evaluate.py` | evaluación completa -> `outputs/task_d/evaluation/summary.json` y figuras |
+| `task_d_gan/seeds.py` | robustez entre semillas: reentrena con las semillas 1–5 (solo para evaluar; los pesos no se suben) y compara con el modelo final (semilla 42, fijada de antemano) |
+| `task_d_gan/poster.py` | póster con prendas generadas por la cGAN y la nota visible "Prendas generadas por IA" |
+| `task_d_gan/screen.py` | pantalla: botón Generar, slider de semilla, DCGAN/cGAN, prenda, interpolación animada, Crear póster |
+
+**Resultados** (`summary.json`):
+- **DCGAN:** cubre las 10 clases (entre 7,7 % y 13,4 % cada una), sin colapso de modos.
+- **cGAN:** el 90,9 % de las imágenes es de la clase pedida; la propia CNN acierta el 91,1 % en reales.
+- **Memorización:** ninguna muestra está más cerca del entrenamiento que el 1 % más cercano de imágenes reales nuevas, así que no copian.
+
+Salidas en `outputs/task_d/` (`samples/`, `training/`, `evaluation/`, `poster/`, `figures/`); qué es cada archivo: [`outputs/task_d/README.md`](outputs/task_d/README.md). Teoría, decisiones con números, limitaciones y preguntas probables: [`docs/notas_informe_tarea_d.md`](docs/notas_informe_tarea_d.md).
+
 ## Interfaz común
 
 `common/ui.py` define el lenguaje visual de toda la app: **editorial** (periodismo de datos + revista de moda), en modo oscuro. Sebastián puede reutilizarlo tal cual en A y C.
@@ -77,6 +115,9 @@ Decisiones, números y limitaciones: [`docs/notas_informe_tarea_b.md`](docs/nota
   - `Slider`: riel de 1 px con marcas.
   - `Toast` (aviso sobrio) y `FadeIn` (aparición suave).
   - `draw_card` y `pill` se mantienen solo por compatibilidad.
+  - El tooltip no es un componente de `ui.py`: se dibuja a mano con `THEME.bg_raised` (ejemplo en `common/screen_template.py`).
+- **Punto de partida para una pantalla nueva:** [`common/screen_template.py`](common/screen_template.py) (cabecera, zona principal, slider, botón, tooltip y ESC para volver; cópiala a tu carpeta). Contrato con el menú: `run(screen, clock)` corre su propio bucle y vuelve con ESC.
+- **Para A y C:** lee [`docs/guia_para_sebastian.md`](docs/guia_para_sebastian.md) (cómo traer los cambios, contrato de pantalla, estilo, `pricing_stats()` y qué pide la rúbrica).
 
 ## Responsables
 
@@ -86,7 +127,7 @@ Decisiones, números y limitaciones: [`docs/notas_informe_tarea_b.md`](docs/nota
 | `task_b_forecasting/` | Elizabeth |
 | `task_c_pricing/` | Sebastián |
 | `task_d_gan/` | Elizabeth |
-| `main.py`, `common/data.py`, `common/ui.py`, `assets/fonts/` | Elizabeth |
+| `main.py`, `common/data.py`, `common/ui.py`, `common/screen_template.py`, `assets/fonts/` | Elizabeth |
 | `common/config.py`, `tests/`, `models/`, `outputs/`, `report/`, `docs/` | Compartido |
 
 ## Reglas de trabajo

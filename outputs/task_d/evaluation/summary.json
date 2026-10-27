@@ -1,0 +1,174 @@
+{
+  "classifier": {
+    "test_accuracy": 0.9107999801635742,
+    "per_class": {
+      "Camiseta": 89.0,
+      "Pantalón": 98.9,
+      "Suéter": 87.7,
+      "Vestido": 92.8,
+      "Abrigo": 86.0,
+      "Sandalia": 97.6,
+      "Camisa": 67.0,
+      "Tenis": 96.5,
+      "Bolso": 98.2,
+      "Botín": 97.1
+    }
+  },
+  "dcgan": {
+    "n_samples": 10000,
+    "epochs": 20,
+    "train_seconds": 372.0,
+    "class_share_pct": {
+      "Camiseta": 9.6,
+      "Pantalón": 12.8,
+      "Suéter": 11.6,
+      "Vestido": 8.6,
+      "Abrigo": 8.5,
+      "Sandalia": 8.9,
+      "Camisa": 9.1,
+      "Tenis": 7.7,
+      "Bolso": 9.9,
+      "Botín": 13.4
+    },
+    "real_class_share_pct": {
+      "Camiseta": 10.8,
+      "Pantalón": 10.0,
+      "Suéter": 10.3,
+      "Vestido": 10.4,
+      "Abrigo": 10.0,
+      "Sandalia": 9.9,
+      "Camisa": 8.5,
+      "Tenis": 10.1,
+      "Bolso": 10.0,
+      "Botín": 10.1
+    },
+    "classes_covered": 10,
+    "min_class_share_pct": 7.670000000000001,
+    "max_class_share_pct": 13.450000000000001,
+    "class_entropy": 0.9928160502115546,
+    "real_class_entropy": 0.9993016519525553,
+    "total_variation_vs_real": 0.08009999999999998
+  },
+  "cgan": {
+    "n_samples": 10000,
+    "epochs": 20,
+    "train_seconds": 381.0,
+    "control_accuracy": 0.9093000292778015,
+    "control_by_class_pct": {
+      "Camiseta": 93.2,
+      "Pantalón": 99.4,
+      "Suéter": 93.6,
+      "Vestido": 93.0,
+      "Abrigo": 74.4,
+      "Sandalia": 95.4,
+      "Camisa": 68.5,
+      "Tenis": 96.5,
+      "Bolso": 98.3,
+      "Botín": 97.0
+    },
+    "intra_class_diversity": {
+      "Camiseta": {
+        "real": 17.29681396484375,
+        "cgan": 17.408206939697266
+      },
+      "Pantalón": {
+        "real": 13.93664836883545,
+        "cgan": 13.295944213867188
+      },
+      "Suéter": {
+        "real": 18.77435874938965,
+        "cgan": 18.644582748413086
+      },
+      "Vestido": {
+        "real": 16.748517990112305,
+        "cgan": 16.307241439819336
+      },
+      "Abrigo": {
+        "real": 18.021419525146484,
+        "cgan": 17.909278869628906
+      },
+      "Sandalia": {
+        "real": 17.416492462158203,
+        "cgan": 16.60361099243164
+      },
+      "Camisa": {
+        "real": 19.007190704345703,
+        "cgan": 18.723377227783203
+      },
+      "Tenis": {
+        "real": 13.629620552062988,
+        "cgan": 13.281462669372559
+      },
+      "Bolso": {
+        "real": 21.90359115600586,
+        "cgan": 20.957338333129883
+      },
+      "Botín": {
+        "real": 17.691133499145508,
+        "cgan": 17.315710067749023
+      }
+    },
+    "intra_class_ratio_mean": 0.9769414236390913
+  },
+  "memorization": {
+    "real_test_to_train": {
+      "median": 6.987057209014893,
+      "p1": 3.082235336303711,
+      "min": 1.6668660640716553
+    },
+    "dcgan_to_train": {
+      "median": 10.080777168273926,
+      "p1": 4.675711154937744,
+      "min": 4.026841640472412
+    },
+    "cgan_to_train": {
+      "median": 8.699639320373535,
+      "p1": 4.608214855194092,
+      "min": 3.829942226409912
+    },
+    "dcgan_below_test_p1_pct": 0.0,
+    "cgan_below_test_p1_pct": 0.0
+  },
+  "fid_cnn": {
+    "real_train_vs_real_test": 0.35346842491620184,
+    "dcgan_vs_real_test": 47.92241246323721,
+    "cgan_vs_real_test": 10.414431674778646,
+    "noise_vs_real_test": 639.8033551525974,
+    "dcgan_bn_batch_stats_vs_real_test": 47.97081581537656
+  },
+  "diversity_pairwise_l2": {
+    "real_test": 22.645578384399414,
+    "dcgan": 22.853132247924805,
+    "cgan": 22.144432067871094
+  },
+  "confident_pct": {
+    "real_test": 74.68000030517578,
+    "dcgan": 39.95000076293945,
+    "cgan": 67.73999786376953
+  },
+  "training_final": {
+    "dcgan": {
+      "epoch": 20.0,
+      "loss_D": 0.7995326212728455,
+      "loss_G": 1.5642101190237603,
+      "D_x": 0.7087840385147249,
+      "D_G_z_before": 0.2913129250886344,
+      "D_G_z_after": 0.27004420094843357,
+      "fid_cnn": 49.128836458218295,
+      "class_entropy": 0.9957064675348979,
+      "seconds": 371.6221072999979
+    },
+    "cgan": {
+      "epoch": 20.0,
+      "loss_D": 1.191959828710251,
+      "loss_G": 0.9764626793769885,
+      "D_x": 0.5747645969456955,
+      "D_G_z_before": 0.424614683079567,
+      "D_G_z_after": 0.4031511624929493,
+      "fid_cnn": 10.208249998807762,
+      "class_entropy": 0.9988599219751144,
+      "control_acc": 0.9100000262260437,
+      "seconds": 380.5493275999979
+    }
+  }
+}
