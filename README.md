@@ -30,6 +30,32 @@ pytest           # no necesita el CSV, GPU ni entrenar nada
 - Plan del proyecto (Markdown): `docs/`. Guía para empezar A y C: [`docs/guia_para_sebastian.md`](docs/guia_para_sebastian.md).
 - Estado: B y D terminadas; A y C abren como marcador "en desarrollo" (Sebastián).
 
+## Tarea A — Rutas de clientes y layout (BFS y A*)
+
+La tienda es una grilla de 16 × 10 celdas con 4 secciones (las 3 categorías del dataset; la ropa separada por género: Ropa mujer, Ropa hombre, Belleza, Electrónica), caja, entrada y salida. Cada cliente es una **transacción real** del CSV: entra, va a la sección de su compra, paga y sale. Cada tramo se planea con **BFS o A\*** (heurística Manhattan) y se cuentan las visitas por celda para encontrar las zonas de alto tráfico. Hay **3 distribuciones** para comparar (bonus): Pasillos, Boutique y Recorrido.
+
+No hay modelo que entrenar. Para reproducir las métricas y figuras:
+
+```bash
+python -m task_a_pathfinding.evaluate   # BFS vs. A* en todos los pares y experimento de layouts (~6 s) -> outputs/task_a/
+python main.py                          # menú -> "Tarea A"
+```
+
+| Archivo | Qué hace |
+|---|---|
+| `task_a_pathfinding/store.py` | grilla (grafo implícito), secciones, los 3 layouts y su validación (todas las secciones alcanzables) |
+| `task_a_pathfinding/search.py` | BFS y A*, con nodos expandidos, tiempo y orden de exploración; `None` si no hay ruta |
+| `task_a_pathfinding/simulation.py` | clientes del dataset que recorren la tienda; visitas, ocupación y pico por celda; independiente de los FPS |
+| `task_a_pathfinding/evaluate.py` | comparación BFS vs. A* en las mismas condiciones y experimento de layouts |
+| `task_a_pathfinding/screen.py` | pantalla: algoritmo, layout, slider de clientes y velocidad, capas Calor / Rutas / Búsqueda, tooltip por celda |
+
+**Resultados** (`outputs/task_a/metrics/`):
+- **Mismo largo:** en los 2 976 pares origen-destino, BFS y A* dan rutas del mismo largo el 100 % de las veces.
+- **Nodos expandidos:** A* expande entre el 23 % (Boutique) y el 55 % (Recorrido) de los nodos de BFS, y nunca más.
+- **Congestión:** el punto más congestionado en los 3 layouts es el pasillo entre la caja y la salida.
+
+Salidas: [`outputs/task_a/README.md`](outputs/task_a/README.md). Decisiones, números y limitaciones: [`docs/notas_informe_tarea_a.md`](docs/notas_informe_tarea_a.md).
+
 ## Tarea B — Pronóstico de demanda (LSTM)
 
 El dataset tiene **3 categorías originales** (Beauty, Clothing, Electronics). Con autorización del profesor se trabaja con **6 series = categoría × género** (p. ej. `Clothing-Female`), en unidades vendidas por semana (52 semanas completas, domingo a sábado).

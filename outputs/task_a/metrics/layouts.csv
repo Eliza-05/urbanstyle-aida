@@ -1,0 +1,4 @@
+layout,mean_route,mean_route_std,time_in_store,total_time,max_peak,top5_share_pct,mean_expanded,hottest_aisle,hottest_aisle_visits
+Pasillos,28.256,0.937,14.599,48.835,9.400,24.941,11.845,Pasillo junto a Caja,145.900
+Boutique,30.554,0.791,15.365,48.925,9.700,24.048,12.039,Pasillo junto a Caja,151.800
+Recorrido,42.458,1.024,19.350,53.960,10.600,18.210,19.109,Pasillo junto a Caja,200.000
