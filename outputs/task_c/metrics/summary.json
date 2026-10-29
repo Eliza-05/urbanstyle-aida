@@ -1,0 +1,83 @@
+{
+  "eval_episodes": 200,
+  "single": {
+    "product": "Clothing",
+    "best_fixed_level": 5,
+    "best_fixed_multiplier": 1.0,
+    "Mejor precio fijo": {
+      "mean_revenue": 779167.8,
+      "gain_pct": 0.0,
+      "diff_ci_lo": 0.0,
+      "diff_ci_hi": 0.0,
+      "win_rate_pct": 0.0
+    },
+    "DQN": {
+      "mean_revenue": 871789.43,
+      "gain_pct": 11.89,
+      "diff_ci_lo": 89252.28,
+      "diff_ci_hi": 96151.24,
+      "win_rate_pct": 100.0
+    },
+    "PPO": {
+      "mean_revenue": 862658.64,
+      "gain_pct": 10.72,
+      "diff_ci_lo": 80011.98,
+      "diff_ci_hi": 86733.8,
+      "win_rate_pct": 100.0
+    },
+    "Oráculo": {
+      "mean_revenue": 875723.59,
+      "gain_pct": 12.39,
+      "diff_ci_lo": 92750.5,
+      "diff_ci_hi": 100188.42,
+      "win_rate_pct": 100.0
+    },
+    "Precio al azar": {
+      "mean_revenue": 688691.68,
+      "gain_pct": -11.61,
+      "diff_ci_lo": -99792.21,
+      "diff_ci_hi": -81309.45,
+      "win_rate_pct": 6.0
+    }
+  },
+  "multi": {
+    "products": [
+      "Clothing",
+      "Beauty",
+      "Electronics"
+    ],
+    "best_fixed_levels": [
+      5,
+      4,
+      5
+    ],
+    "Mejor precio fijo": {
+      "mean_revenue": 2476762.24,
+      "gain_pct": 0.0,
+      "diff_ci_lo": 0.0,
+      "diff_ci_hi": 0.0,
+      "win_rate_pct": 0.0
+    },
+    "PPO": {
+      "mean_revenue": 2659450.34,
+      "gain_pct": 7.38,
+      "diff_ci_lo": 176107.01,
+      "diff_ci_hi": 189434.26,
+      "win_rate_pct": 100.0
+    },
+    "Oráculo": {
+      "mean_revenue": 2682859.44,
+      "gain_pct": 8.32,
+      "diff_ci_lo": 198980.43,
+      "diff_ci_hi": 213361.64,
+      "win_rate_pct": 100.0
+    },
+    "Precio al azar": {
+      "mean_revenue": 2137595.34,
+      "gain_pct": -13.69,
+      "diff_ci_lo": -353311.28,
+      "diff_ci_hi": -325071.51,
+      "win_rate_pct": 0.0
+    }
+  }
+}

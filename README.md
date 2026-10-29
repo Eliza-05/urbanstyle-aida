@@ -28,7 +28,7 @@ pytest           # no necesita el CSV, GPU ni entrenar nada
 
 - CSV de ventas: `data/raw/retail_sales_dataset.csv` (nunca se modifica; los derivados van en `data/processed/`).
 - Plan del proyecto (Markdown): `docs/`. Guía para empezar A y C: [`docs/guia_para_sebastian.md`](docs/guia_para_sebastian.md).
-- Estado: B y D terminadas; A y C abren como marcador "en desarrollo" (Sebastián).
+- Estado: las 4 tareas terminadas (A y C: Sebastián; B y D: Elizabeth).
 
 ## Tarea B — Pronóstico de demanda (LSTM)
 
@@ -61,6 +61,40 @@ python main.py                                   # menú -> "Tarea B"
 Salidas organizadas en `outputs/task_b/` (`export/`, `metrics/`, `training/`, `eda/`, `figures/`); qué es cada archivo: [`outputs/task_b/README.md`](outputs/task_b/README.md).
 
 Decisiones, números y limitaciones: [`docs/notas_informe_tarea_b.md`](docs/notas_informe_tarea_b.md).
+
+## Tarea C — Precios dinámicos con RL (Gymnasium + stable-baselines3)
+
+Entorno Gymnasium propio (`PricingEnv`):
+- **un paso = un día**;
+- **estado** = precio, segmento del día (3 rangos de edad) y ventas de los últimos 3 días;
+- **acciones** = bajar 20 % / 10 %, mantener, subir 10 % / 20 %;
+- **recompensa** = ingreso del día.
+
+La demanda es de "disposición a pagar": las escalas (precio de referencia, segmentos, cantidades) salen del dataset, y la reacción al precio es un **supuesto de simulación** declarado en `task_c_pricing/demand.py`. Se entrenan **DQN y PPO** para un producto (Ropa) y **PPO para tres productos** (bonus), y se comparan contra el **mejor** precio fijo en los mismos 200 episodios y con los mismos clientes.
+
+Los agentes finales ya están en `models/` (`dqn_pricing.zip`, `ppo_pricing.zip`, `ppo_pricing_multi.zip` y `pricing_config.json`), así que no hace falta entrenar para usar la app. Para reproducir todo:
+
+```bash
+python -m task_c_pricing.train      # check_env + DQN, PPO y PPO multiproducto (~3 min en CPU) -> models/
+python -m task_c_pricing.evaluate   # RL vs. mejor precio fijo y oráculo, 200 episodios (~25 s) -> outputs/task_c/
+python main.py                      # menú -> "Tarea C"
+```
+
+| Archivo | Qué hace |
+|---|---|
+| `task_c_pricing/demand.py` | regla de demanda (disposición a pagar), parámetros del dataset y supuestos; se guarda en `models/pricing_config.json` |
+| `task_c_pricing/env.py` | entorno Gymnasium de uno o varios productos (`Discrete(5)` / `MultiDiscrete`) |
+| `task_c_pricing/train.py` | entrena DQN y PPO con stable-baselines3 (semilla 42, `check_env` antes) |
+| `task_c_pricing/policies.py` | precio fijo, agente, oráculo y precio al azar; un episodio completo |
+| `task_c_pricing/evaluate.py` | comparación justa (mismas semillas, IC 95 % bootstrap pareado), precio por segmento, curvas de aprendizaje |
+| `task_c_pricing/screen.py` | pantalla: ingreso acumulado en vivo de agente vs. mejor precio fijo vs. oráculo, precio día a día, slider de precio inicial, reiniciar |
+
+**Resultados** (`outputs/task_c/metrics/summary.json`, 200 episodios de 60 días):
+- **Un producto:** DQN **+11,9 %** y PPO **+10,7 %** sobre el mejor precio fijo; el techo (oráculo con la demanda real) es +12,4 %. Ganan en el 100 % de los episodios.
+- **Tres productos:** PPO **+7,4 %** (techo +8,3 %).
+- **Diferenciación por segmento:** el agente cobra ~0,7× a los jóvenes, ~1,0× a los mayores y ~1,2× a los adultos, cerca de los óptimos de cada segmento.
+
+Salidas: [`outputs/task_c/README.md`](outputs/task_c/README.md). Supuestos, decisiones, números y limitaciones: [`docs/notas_informe_tarea_c.md`](docs/notas_informe_tarea_c.md).
 
 ## Tarea D — Imágenes promocionales con GAN (DCGAN + cGAN)
 
