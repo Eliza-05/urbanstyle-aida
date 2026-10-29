@@ -1,0 +1,4 @@
+layout,pairs,same_length_pct,mean_length,bfs_expanded,astar_expanded,astar_fewer_pct,astar_equal_pct,bfs_us,astar_us,expanded_ratio
+Pasillos,992,100.000,9.516,48.500,12.123,97.480,2.520,38.578,14.703,0.250
+Boutique,992,100.000,9.032,46.192,10.516,97.681,2.319,37.079,13.192,0.228
+Recorrido,992,100.000,14.133,43.004,23.648,97.278,2.722,35.951,27.740,0.550
