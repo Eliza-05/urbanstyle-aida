@@ -45,7 +45,7 @@ def _hex(code: str) -> tuple:
 class THEME:
     """Tema único de UrbanStyle (editorial, modo oscuro). Se usa como `ui.THEME.accent`."""
 
-    scale = 1.0  # factor DPI (1.5 en Windows al 150 %); lo fija create_window/set_scale
+    scale = 1.0  # factor DPI × config.UI_ZOOM (1.25 en Mac; 1.875 en Windows al 150 % si cabe); create_window
 
     # Fondo y líneas
     bg = _hex("#0F0E0D")                 # casi negro cálido
@@ -148,11 +148,16 @@ def _work_area():
         if ctypes.windll.user32.SystemParametersInfoW(48, 0, ctypes.byref(rect), 0):  # SPI_GETWORKAREA
             return rect.right - rect.left, rect.bottom - rect.top
     sizes = pygame.display.get_desktop_sizes()
-    return sizes[0] if sizes else (10_000, 10_000)
+    if not sizes:
+        return 10_000, 10_000
+    w, h = sizes[0]
+    if sys.platform == "darwin":  # en Mac el tamaño incluye la barra de menús y el Dock
+        h -= 80
+    return w, h
 
 
 def create_window(logical_size, caption: str = "UrbanStyle") -> pygame.Surface:
-    """Crea la ventana en píxeles físicos (logical_size × escala DPI) y fija THEME.scale.
+    """Crea la ventana en píxeles físicos (logical_size × escala DPI × config.UI_ZOOM) y fija THEME.scale.
 
     Si la ventana no cabe en el área útil de la pantalla, reduce la escala. La variable de entorno
     URBANSTYLE_SCALE fuerza una escala (útil para capturas o para probar otra escala).
@@ -165,7 +170,7 @@ def create_window(logical_size, caption: str = "UrbanStyle") -> pygame.Surface:
     elif pygame.display.get_driver() == "dummy":
         scale = 1.0
     else:
-        scale = _system_scale()
+        scale = round(_system_scale() * config.UI_ZOOM, 2)
         work_w, work_h = _work_area()
         title_bar = 40 * scale
         w, h = logical_size

@@ -12,9 +12,9 @@ from task_d_gan import screen as screen_d
 
 # (letra, nombre, descripción, módulo con run(screen, clock), ¿pantalla terminada?)
 TASKS = [
-    ("A", "Tarea A", "Rutas de clientes y layout", screen_a, False),
+    ("A", "Tarea A", "Rutas de clientes y layout", screen_a, True),
     ("B", "Tarea B", "Pronóstico de demanda", screen_b, True),
-    ("C", "Tarea C", "Precios dinámicos con RL", screen_c, False),
+    ("C", "Tarea C", "Precios dinámicos con RL", screen_c, True),
     ("D", "Tarea D", "Imágenes promocionales con GAN", screen_d, True),
 ]
 KEYS = {pygame.K_a: 0, pygame.K_b: 1, pygame.K_c: 2, pygame.K_d: 3}  # atajos de teclado

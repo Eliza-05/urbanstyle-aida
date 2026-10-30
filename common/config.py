@@ -13,6 +13,7 @@ SEED = 42
 
 WINDOW_WIDTH = 1024
 WINDOW_HEIGHT = 640
+UI_ZOOM = 1.25   # tamaño de toda la interfaz respecto a la base 1024×640 (1280×800 con escala 100 %)
 FPS = 60
 
 COLOR_BG = (24, 26, 32)
