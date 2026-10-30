@@ -168,7 +168,7 @@ Salidas en `outputs/task_d/` (`samples/`, `training/`, `evaluation/`, `poster/`,
   - fondo `#0F0E0D`; texto `#EFEBE4`, `#B7B0A8` y `#8F8983`;
   - acento `#FF5A36`;
   - modelos: LSTM = acento, media móvil `#B09A74`, media histórica `#7E9C89`, ingenua `#77716B`, barras de ventas `#3D3936`.
-- **Nitidez en Windows:** `ui.create_window((1024, 640))` hace el proceso consciente de DPI y crea la ventana en píxeles físicos (1536×960 con escala 150 %). Cada pantalla diseña en píxeles **lógicos** y los convierte con `ui.px(valor)`; los tamaños de letra van en px lógicos (mínimo 14). `URBANSTYLE_SCALE` fuerza una escala (útil para capturas).
+- **Nitidez en Windows:** `ui.create_window((1024, 640))` hace el proceso consciente de DPI y crea la ventana en píxeles físicos. `config.UI_ZOOM = 1.25` agranda toda la interfaz: 1280×800 con escala 100 % (Mac) y hasta 1920×1200 con escala 150 %; si la ventana no cabe en la pantalla, la escala se reduce sola. Cada pantalla diseña en píxeles **lógicos** y los convierte con `ui.px(valor)`; los tamaños de letra van en px lógicos (mínimo 14). `URBANSTYLE_SCALE` fuerza una escala (útil para capturas).
 - **Dibujo:** texto cacheado con antialias (`ui.blit_text`, `ui.render_text`, `ui.fit_size` para titulares que deben caber), líneas y círculos con antialias (`ui.aa_polyline`, `ui.aa_line`, `ui.aa_circle`, `ui.dashed_polyline`). Lo costoso se pre-renderiza y se cachea.
 - **Componentes, con la API de siempre:**
   - `Button`: enlace de texto con subrayado de acento al pasar el mouse; `primary=True` lo pone en el color de acento; con `subtitle` y `badge` es una fila de lista tipográfica.
