@@ -15,6 +15,7 @@
 
 ## figures/
 - `fixed_price_curve.png`: ingreso según el precio fijo, con DQN, PPO y oráculo como líneas de referencia.
+- `demand_by_segment.png`: la regla de demanda supuesta para Ropa: % de clientes que compra según el precio y ingreso esperado por segmento, con el óptimo de cada uno y el mejor precio fijo. `slides/demand_buy.png` y `slides/demand_revenue.png` son sus dos paneles por separado (cuadrados, para las diapositivas).
 - `comparison_single.png`, `comparison_multi.png`: barras de ingreso medio ± desviación por política.
 - `learning_curves.png`: ingreso por episodio durante el entrenamiento de los 3 agentes, con el mejor precio fijo y el oráculo.
 - `episode_example.png`: un mismo episodio: precio de PPO, del mejor precio fijo y del oráculo según el segmento del día, e ingreso acumulado.
