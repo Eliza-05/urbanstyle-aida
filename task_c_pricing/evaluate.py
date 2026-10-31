@@ -39,6 +39,7 @@ OUT_DIR = config.OUTPUTS_DIR / "task_c"
 METRICS_DIR, FIGURES_DIR = OUT_DIR / "metrics", OUT_DIR / "figures"
 EVAL_SEEDS = range(10_000, 10_200)        # 200 episodios de 60 días
 N_BOOT = 2_000
+SEGMENT_COLORS = ["#6E92B2", "#C48092", "#A08CC4"]   # jóvenes, adultos, mayores (como en la pantalla)
 COLORS = {"PPO": "#FF5A36", "DQN": "#C9644A", "Oráculo": "#7E9C89", "Mejor precio fijo": "#B09A74",
           "Precio al azar": "#77716B"}
 
@@ -173,6 +174,58 @@ def plot_learning_curves(references: dict) -> None:
     plt.close(fig)
 
 
+def _plot_buy_probability(ax, cfg, prices, product: int = 0) -> None:
+    for s, seg in enumerate(cfg.segments):
+        ax.plot(prices, 100 * cfg.buy_probability(prices, s, product), color=SEGMENT_COLORS[s], lw=2.5,
+                label=SEGMENT_NAMES[seg])
+    ax.set_title("Más precio → menos clientes compran")
+    ax.set_xlabel(f"precio de {PRODUCT_NAMES[cfg.products[product]]} ($)")
+    ax.set_ylabel("% de clientes que compra")
+    ax.legend(frameon=False, fontsize=9)
+
+
+def _plot_expected_revenue(ax, cfg, prices, product: int = 0) -> None:
+    for s, seg in enumerate(cfg.segments):
+        ax.plot(prices, cfg.expected_revenue(prices, s, product) / 1e3, color=SEGMENT_COLORS[s], lw=2.5,
+                label=SEGMENT_NAMES[seg])
+        k = cfg.optimal_level(s, product)
+        x = cfg.price(product, k)
+        y = cfg.expected_revenue(x, s, product) / 1e3
+        ax.plot(x, y, "o", color=SEGMENT_COLORS[s], ms=9)
+        ax.annotate(f"óptimo {cfg.price_multipliers[k]:.0%}", (x, y), textcoords="offset points", xytext=(0, 9),
+                    ha="center", fontsize=9, color=SEGMENT_COLORS[s])
+    ax.axvline(cfg.ref_prices[product], color=COLORS["Mejor precio fijo"], ls="--", lw=1.5,
+               label=f"mejor precio fijo (${cfg.ref_prices[product]:.0f})")
+    ax.set_ylim(0, None)
+    ax.margins(y=0.12)
+    ax.set_title("Cada segmento tiene otro precio óptimo")
+    ax.set_xlabel(f"precio de {PRODUCT_NAMES[cfg.products[product]]} ($)")
+    ax.set_ylabel("ingreso esperado por día (miles $)")
+    ax.legend(frameon=False, fontsize=8, loc="lower center")
+
+
+def plot_demand(cfg) -> None:
+    """La regla de demanda supuesta (Ropa): P(compra) e ingreso esperado por segmento, con su óptimo.
+    Guarda la figura ancha y sus dos paneles por separado (cuadrados, para las diapositivas)."""
+    prices = np.linspace(cfg.price(0, 0), cfg.price(0, cfg.n_levels - 1), 200)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4))
+    _plot_buy_probability(ax1, cfg, prices)
+    _plot_expected_revenue(ax2, cfg, prices)
+    for ax in (ax1, ax2):
+        ax.spines[["top", "right"]].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(FIGURES_DIR / "demand_by_segment.png", dpi=170)
+    plt.close(fig)
+    (FIGURES_DIR / "slides").mkdir(exist_ok=True)
+    for name, draw in (("demand_buy.png", _plot_buy_probability), ("demand_revenue.png", _plot_expected_revenue)):
+        fig, ax = plt.subplots(figsize=(6, 6))
+        draw(ax, cfg, prices)
+        ax.spines[["top", "right"]].set_visible(False)
+        fig.tight_layout()
+        fig.savefig(FIGURES_DIR / "slides" / name, dpi=170)
+        plt.close(fig)
+
+
 # ---------- principal ----------
 
 def evaluate_single(cfg, agents: dict):
@@ -229,6 +282,7 @@ def main() -> None:
     msummary.to_csv(METRICS_DIR / "comparison_multi.csv", index=False, float_format="%.2f")
 
     plot_fixed_curve(sweep, summary)
+    plot_demand(cfg)
     plot_comparison(summary, "Un producto (Ropa): 200 episodios, mismas semillas",
                     FIGURES_DIR / "comparison_single.png")
     plot_comparison(msummary, "Tres productos: 200 episodios, mismas semillas", FIGURES_DIR / "comparison_multi.png")
